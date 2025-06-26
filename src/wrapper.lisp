@@ -54,48 +54,34 @@
   (obj        t)
   (dimensions list))
 
-(sera:-> create-fft-plan (list (member -1 1))
-         (values plan &optional))
-(defun create-fft-plan (dimensions sign)
-  "Create a plan for FFT transform (complex input). Sign is -1 for
+(defmacro def-create-plan (name documentation bidi)
+  (let ((low-level-name (find-symbol (concatenate 'string "%" (symbol-name name)))))
+    `(progn
+       (sera:-> ,name (list ,@(if bidi `((member -1 1))))
+                (values plan &optional))
+       (defun ,name (dimensions ,@(if bidi `(sign)))
+         ,documentation
+         (let ((rank (length dimensions)))
+           (with-foreign-object (ds :int rank)
+             (loop for i below rank
+                   for d in dimensions do
+                   (setf (mem-aref ds :int i) d))
+             (plan
+              (,low-level-name rank ds ,@(if bidi `(sign)))
+              dimensions)))))))
+
+(def-create-plan create-fft-plan
+      "Create a plan for FFT transform (complex input). Sign is -1 for
 forward transform and 1 for inverse transform. The plan must be
-destroyed later with DESTROY-PLAN."
-  (let ((rank (length dimensions)))
-    (with-foreign-object (ds :int rank)
-      (loop for i below rank
-            for d in dimensions do
-            (setf (mem-aref ds :int i) d))
-      (plan
-       (%create-fft-plan rank ds sign)
-       dimensions))))
+destroyed later with DESTROY-PLAN." t)
 
-(sera:-> create-rfft-plan (list)
-         (values plan &optional))
-(defun create-rfft-plan (dimensions)
-  "Create a plan for the real-input forward FFT transform (RFFT). The
-plan must be destroyed later with DESTROY-PLAN."
-  (let ((rank (length dimensions)))
-    (with-foreign-object (ds :int rank)
-      (loop for i below rank
-            for d in dimensions do
-            (setf (mem-aref ds :int i) d))
-      (plan
-       (%create-rfft-plan rank ds)
-       dimensions))))
+(def-create-plan create-rfft-plan
+    "Create a plan for the real-input forward FFT transform (RFFT). The
+plan must be destroyed later with DESTROY-PLAN." nil)
 
-(sera:-> create-irfft-plan (list)
-         (values plan &optional))
-(defun create-irfft-plan (dimensions)
-  "Create a plan for the real-input inverse FFT transform (IRFFT). The
-plan must be destroyed later with DESTROY-PLAN."
-  (let ((rank (length dimensions)))
-    (with-foreign-object (ds :int rank)
-      (loop for i below rank
-            for d in dimensions do
-            (setf (mem-aref ds :int i) d))
-      (plan
-       (%create-irfft-plan rank ds)
-       dimensions))))
+(def-create-plan create-irfft-plan
+    "Create a plan for the real-input inverse FFT transform (IRFFT). The
+plan must be destroyed later with DESTROY-PLAN." nil)
 
 (sera:-> destroy-plan (plan)
          (values &optional))
@@ -105,11 +91,13 @@ plan must be destroyed later with DESTROY-PLAN."
    (plan-obj plan)))
 
 (defun rfft-dimensions (dimensions)
-  (labels ((%go (ds)
-             (if (cdr ds)
-                 (cons (car ds) (%go (cdr ds)))
-                 (list (1+ (floor (car ds) 2))))))
-    (%go dimensions)))
+  (reduce
+   (lambda (dim acc)
+     (cons
+      (if acc dim (1+ (floor dim 2))) acc))
+   dimensions
+   :from-end t
+   :initial-value nil))
 
 (declaim (inline check-dimensions))
 (defun check-dimensions (plan array &key irfft)
