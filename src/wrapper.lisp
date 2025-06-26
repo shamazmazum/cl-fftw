@@ -54,8 +54,12 @@
   (obj        t)
   (dimensions list))
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun ll-name (symbol)
+    (intern (concatenate 'string "%" (symbol-name symbol)))))
+
 (defmacro def-create-plan (name documentation bidi)
-  (let ((low-level-name (find-symbol (concatenate 'string "%" (symbol-name name)))))
+  (let ((ll-name (ll-name name)))
     `(progn
        (sera:-> ,name (list ,@(if bidi `((member -1 1))))
                 (values plan &optional))
@@ -67,7 +71,7 @@
                    for d in dimensions do
                    (setf (mem-aref ds :int i) d))
              (plan
-              (,low-level-name rank ds ,@(if bidi `(sign)))
+              (,ll-name rank ds ,@(if bidi `(sign)))
               dimensions)))))))
 
 (def-create-plan create-fft-plan
@@ -107,65 +111,38 @@ plan must be destroyed later with DESTROY-PLAN." nil)
                    (plan-dimensions plan)))
     (error "Dimension mismatch, check your plan")))
 
-(sera:-> fft (plan (simple-array (complex double-float)))
-         (values (simple-array (complex double-float)) &optional))
-(defun fft (plan array)
-  "Perform FFT transform. ARRAY's and PLAN's dimensions must be the
-same."
-  (check-dimensions plan array)
-  (let ((result (make-array (array-dimensions array)
-                            :element-type '(complex double-float))))
-    (with-pointer-to-vector-data (input array)
-      (with-pointer-to-vector-data (output result)
-        (%fft (plan-obj plan) input output)))
-    result))
+(defmacro def-fft ((name input-elt-type output-elt-type dim-transform cd-args)
+                   documentation)
+  (let ((ll-name (ll-name name)))
+    `(progn
+       (sera:-> ,name (plan (simple-array ,input-elt-type))
+                (values (simple-array ,output-elt-type) &optional))
+       (defun ,name (plan array)
+         ,documentation
+         (check-dimensions plan array ,@cd-args)
+         (let ((result (make-array (,dim-transform (plan-dimensions plan))
+                                   :element-type ',output-elt-type)))
+           (with-pointer-to-vector-data (input array)
+             (with-pointer-to-vector-data (output result)
+               (,ll-name (plan-obj plan) input output)))
+           result)))))
 
-(sera:-> rfft (plan (simple-array double-float))
-         (values (simple-array (complex double-float)) &optional))
-(defun rfft (plan array)
-  "Perform RFFT transform. ARRAY's and PLAN's dimensions must be the
-same."
-  (check-dimensions plan array)
-  (let ((result (make-array (rfft-dimensions (array-dimensions array))
-                            :element-type '(complex double-float))))
-    (with-pointer-to-vector-data (input array)
-      (with-pointer-to-vector-data (output result)
-        (%rfft (plan-obj plan) input output)))
-    result))
+(def-fft (fft (complex double-float) (complex double-float) identity ())
+    "Perform FFT transform. ARRAY's and PLAN's dimensions must be the
+same.")
 
-(sera:-> irfft (plan (simple-array (complex double-float)))
-         (values (simple-array double-float) &optional))
-(defun irfft (plan array)
-  "Perform IRFFT transform. ARRAY's and PLAN's dimensions must be
-compatible."
-  (check-dimensions plan array :irfft t)
-  (let ((result (make-array (plan-dimensions plan)
-                            :element-type 'double-float)))
-    (with-pointer-to-vector-data (input array)
-      (with-pointer-to-vector-data (output result)
-        (%irfft (plan-obj plan) input output)))
-    result))
+(def-fft (rfft double-float (complex double-float) rfft-dimensions ())
+    "Perform RFFT transform. ARRAY's and PLAN's dimensions must be the
+same.")
 
-(defmacro with-fft-plan ((plan dimensions sign) &body body)
-  "Create an FFT plan and make sure it is destroyed when control
-leaves BODY."
-  `(let ((,plan (create-fft-plan ,dimensions ,sign)))
-     (unwind-protect
-          (progn ,@body)
-       (destroy-plan ,plan))))
+(def-fft (irfft (complex double-float) double-float identity (:irfft t))
+    "Perform IRFFT transform. ARRAY's and PLAN's dimensions must be
+compatible.")
 
-(defmacro with-rfft-plan ((plan dimensions) &body body)
-  "Create an RFFT plan and make sure it is destroyed when control
-leaves BODY."
-  `(let ((,plan (create-rfft-plan ,dimensions)))
-     (unwind-protect
-          (progn ,@body)
-       (destroy-plan ,plan))))
-
-(defmacro with-irfft-plan ((plan dimensions) &body body)
-  "Create an IRFFT plan and make sure it is destroyed when control
-leaves BODY."
-  `(let ((,plan (create-irfft-plan ,dimensions)))
+(defmacro with-plan ((plan constructor dimensions &optional sign) &body body)
+  "Create an FFT plan with CONSTRUCTOR and make sure it is destroyed
+when control leaves BODY."
+  `(let ((,plan (,constructor ,dimensions ,@(if sign (list sign)))))
      (unwind-protect
           (progn ,@body)
        (destroy-plan ,plan))))

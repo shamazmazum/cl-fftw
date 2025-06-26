@@ -6,7 +6,5 @@
            #:create-fft-plan
            #:create-rfft-plan
            #:create-irfft-plan
-           #:with-fft-plan
-           #:with-rfft-plan
-           #:with-irfft-plan
+           #:with-plan
            #:fft #:rfft #:irfft))
