@@ -99,22 +99,14 @@ void destroy_plan (struct fftw3_plan* plan) {
     free (plan);
 }
 
-void fft (struct fftw3_plan* plan, const fftw_complex *in, fftw_complex *out) {
-    assert (plan->out == NULL && plan->total_out == 0);
-
-    memcpy (plan->in, in, sizeof(fftw_complex) * plan->total_in);
-    fftw_execute (plan->plan);
-    memcpy (out, plan->in, sizeof(fftw_complex) * plan->total_in);
+void* get_input_pointer (const struct fftw3_plan* plan) {
+    return plan->in;
 }
 
-void rfft (struct fftw3_plan* plan, const double *in, fftw_complex *out) {
-    memcpy (plan->in, in, sizeof(double) * plan->total_in);
-    fftw_execute (plan->plan);
-    memcpy (out, plan->out, sizeof(fftw_complex) * plan->total_out);
+void* get_output_pointer (const struct fftw3_plan* plan) {
+    return (plan->out != NULL)? plan->out: plan->in;
 }
 
-void irfft (struct fftw3_plan* plan, const fftw_complex *in, double *out) {
-    memcpy (plan->in, in, sizeof(fftw_complex) * plan->total_in);
+void execute_plan (const struct fftw3_plan *plan) {
     fftw_execute (plan->plan);
-    memcpy (out, plan->out, sizeof(double) * plan->total_out);
 }

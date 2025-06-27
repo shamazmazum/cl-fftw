@@ -35,31 +35,60 @@
 (defcfun ("destroy_plan" %destroy-plan) :void
   (plan :pointer))
 
-(defcfun ("fft" %fft) :void
-  (plan :pointer)
-  (in   (:pointer :double))
-  (out  (:pointer :double)))
+(defcfun ("get_input_pointer" get-input-pointer) :pointer
+  (plan :pointer))
 
-(defcfun ("rfft" %rfft) :void
-  (plan :pointer)
-  (in   (:pointer :double))
-  (out  (:pointer :double)))
+(defcfun ("get_output_pointer" get-output-pointer) :pointer
+  (plan :pointer))
 
-(defcfun ("irfft" %irfft) :void
-  (plan :pointer)
-  (in   (:pointer :double))
-  (out  (:pointer :double)))
+(defcfun ("execute_plan" execute-plan) :pointer
+  (plan :pointer))
 
 (sera:defconstructor plan
   (obj        t)
   (dimensions list))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun ll-name (symbol)
-    (intern (concatenate 'string "%" (symbol-name symbol)))))
+(declaim (inline copy-to-c!))
+(defun copy-to-c! (plan array)
+  (let ((ptr (get-input-pointer (plan-obj plan)))
+        (type (array-element-type array)))
+    (cond
+      ((equalp type '(complex double-float))
+       (loop for i below (array-total-size array)
+             for j from 0 by 2
+             for x = (row-major-aref array i) do
+             (setf (mem-aref ptr :double j)
+                   (realpart x)
+                   (mem-aref ptr :double (1+ j))
+                   (imagpart x))))
+      ((equalp type 'double-float)
+       (loop for i below (array-total-size array) do
+             (setf (mem-aref ptr :double i)
+                   (row-major-aref array i))))
+      (t (error "Unreachable"))))
+  array)
+
+(declaim (inline copy-from-c!))
+(defun copy-from-c! (plan array)
+  (let ((ptr (get-output-pointer (plan-obj plan)))
+        (type (array-element-type array)))
+    (cond
+      ((equalp type '(complex double-float))
+       (loop for i below (array-total-size array)
+             for j from 0 by 2
+             for x = (complex (mem-aref ptr :double j)
+                              (mem-aref ptr :double (1+ j)))
+             do
+             (setf (row-major-aref array i) x)))
+      ((equalp type 'double-float)
+       (loop for i below (array-total-size array) do
+             (setf (row-major-aref array i)
+                   (mem-aref ptr :double i))))
+      (t (error "Unreachable"))))
+  array)
 
 (defmacro def-create-plan (name documentation bidi)
-  (let ((ll-name (ll-name name)))
+  (let ((ll-name (intern (concatenate 'string "%" (symbol-name name)))))
     `(progn
        (sera:-> ,name (list ,@(if bidi `((member -1 1))))
                 (values plan &optional))
@@ -113,19 +142,17 @@ plan must be destroyed later with DESTROY-PLAN." nil)
 
 (defmacro def-fft ((name input-elt-type output-elt-type dim-transform cd-args)
                    documentation)
-  (let ((ll-name (ll-name name)))
-    `(progn
-       (sera:-> ,name (plan (simple-array ,input-elt-type))
-                (values (simple-array ,output-elt-type) &optional))
-       (defun ,name (plan array)
-         ,documentation
-         (check-dimensions plan array ,@cd-args)
-         (let ((result (make-array (,dim-transform (plan-dimensions plan))
-                                   :element-type ',output-elt-type)))
-           (with-pointer-to-vector-data (input array)
-             (with-pointer-to-vector-data (output result)
-               (,ll-name (plan-obj plan) input output)))
-           result)))))
+  `(progn
+     (sera:-> ,name (plan (simple-array ,input-elt-type))
+              (values (simple-array ,output-elt-type) &optional))
+     (defun ,name (plan array)
+       ,documentation
+       (check-dimensions plan array ,@cd-args)
+       (let ((result (make-array (,dim-transform (plan-dimensions plan))
+                                 :element-type ',output-elt-type)))
+         (copy-to-c! plan array)
+         (execute-plan (plan-obj plan))
+         (copy-from-c! plan result)))))
 
 (def-fft (fft (complex double-float) (complex double-float) identity ())
     "Perform FFT transform. ARRAY's and PLAN's dimensions must be the
