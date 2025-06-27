@@ -198,3 +198,6 @@ previously created plan. DIMENSIONS is a list of dimensions of the
 result."
   (with-plan (plan create-irfft-plan dimensions)
     (irfft plan array)))
+
+(defconstant +forward+  -1)
+(defconstant +backward+ +1)
