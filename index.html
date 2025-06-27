@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+  Overview &ndash; cl-fftw
+</title>
+    <link rel="stylesheet" href="static/style.css"/>
+    
+  <link rel="stylesheet" href="static/highlight.css"/>
+  <script src="static/highlight.js"></script>
+  <script src="static/load-mathjax.js" async></script>
+  <style>
+   /* Highlight the current top-level TOC item, and hide the TOC of all other items */
+
+   .toc a[data-node="index"] {
+       color: #AD3108;
+   }
+
+   .toc ol {
+       display: none;
+   }
+
+   .toc > ol {
+       display: block;
+   }
+
+   .toc li a[data-node="index"] + ol {
+       display: block;
+   }
+
+   .toc li a[data-node="index"] + ol li {
+       font-size: 16px;
+       margin: 0 10px;
+   }
+
+   .toc li a[active] + ol li:first-child {
+       margin-top: 5px;
+   }
+  </style>
+
+  </head>
+  <body>
+    
+  <h1 class="doc-title">cl-fftw » Overview</h1>
+  <article id="article" data-section="index">
+    <aside>
+      <ol class="toc"><li><a href="index.html" data-node="index">Overview</a></li><li><a href="api.html" data-node="api">API</a></li></ol>
+    </aside>
+    <main class="codex-section">
+      <p>
+    <b>cl-fftw</b> is a wrapper around FFTW library (in double precision). There
+    are two types of functions: for use with plans and &quot;fast&quot; ones which are
+    prefixed with <code>%</code> and do not require manual plan creation.</p><p>    This is a list of FFT functions which work with plans:
+    </p><ol><li><code>fft</code> does a complex-to-complex transform (in both directions).</li><li><code>rfft</code> does a transform of real-valued input.</li><li><code>irfft</code> is an inverse of <code>rfft</code>.</li></ol><p>    Plans for these functions can be created as follows:
+    </p><ol><li><code>create-fft-plan</code> for <code>fft</code>.</li><li><code>create-rfft-plan</code> for <code>rfft</code>.</li><li><code>create-irfft-plan</code> for <code>irfft</code>.</li></ol><p>    A plan must be destroyed with <code>destroy-plan</code> when it is no longer
+    needed. A convenient macro <code>with-plan</code> helps to control lifetime of a
+    plan.
+</p>
+    </main>
+  </article>
+  <footer>
+    <div class="info">
+      Created with <a href="https://github.com/CommonDoc/codex">Codex</a>.
+    </div>
+  </footer>
+  <script>
+   HighlightLisp.highlight_auto();
+  </script>
+
+  </body>
+</html>
