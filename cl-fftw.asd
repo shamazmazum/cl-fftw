@@ -46,4 +46,15 @@
   :components ((:file  "package")
                (:c->so "libfftwrap")
                (:file  "wrapper"))
-  :depends-on (:cffi :serapeum))
+  :depends-on (:cffi :serapeum)
+  :in-order-to ((test-op (load-op "cl-fftw/tests")))
+  :perform (test-op (op system)
+                    (declare (ignore op system))
+                    (uiop:symbol-call :cl-fftw/tests '#:run-tests)))
+
+(defsystem :cl-fftw/tests
+    :name :cl-fftw/tests
+    :pathname "tests"
+    :components ((:file "package")
+                 (:file "tests" :depends-on ("package")))
+    :depends-on (:cl-fftw :yaft :array-operations :fiveam))
