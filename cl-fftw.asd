@@ -32,8 +32,8 @@
        (list "cc" "-fPIC" "-shared"
              #+freebsd "-I/usr/local/include"
              #+freebsd "-L/usr/local/lib"
-             "-lfftw3"
-             "-o" (nn shared-object) (nn c-file))))))
+             "-o" (nn shared-object) (nn c-file)
+             "-lfftw3")))))
 
 (defsystem :cl-fftw
   :name :cl-fftw
