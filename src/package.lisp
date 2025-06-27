@@ -7,4 +7,5 @@
            #:create-rfft-plan
            #:create-irfft-plan
            #:with-plan
-           #:fft #:rfft #:irfft))
+           #:fft #:rfft #:irfft
+           #:%fft #:%rfft #:%irfft))

@@ -90,7 +90,7 @@
 (defmacro def-create-plan (name documentation bidi)
   (let ((ll-name (intern (concatenate 'string "%" (symbol-name name)))))
     `(progn
-       (sera:-> ,name (list ,@(if bidi `((member -1 1))))
+       (sera:-> ,name (list ,@(if bidi `((member -1 +1))))
                 (values plan &optional))
        (defun ,name (dimensions ,@(if bidi `(sign)))
          ,documentation
@@ -173,3 +173,28 @@ when control leaves BODY."
      (unwind-protect
           (progn ,@body)
        (destroy-plan ,plan))))
+
+(sera:-> %fft ((simple-array (complex double-float)) (member -1 +1))
+         (values (simple-array (complex double-float)) &optional))
+(defun %fft (array sign)
+  "Perform FFT transform. This is a version of FFT without previously
+created plan."
+  (with-plan (plan create-fft-plan (array-dimensions array) sign)
+    (fft plan array)))
+
+(sera:-> %rfft ((simple-array double-float))
+         (values (simple-array (complex double-float)) &optional))
+(defun %rfft (array)
+  "Perform RFFT transform. This is a version of RFFT without
+previously created plan."
+  (with-plan (plan create-rfft-plan (array-dimensions array))
+    (rfft plan array)))
+
+(sera:-> %irfft ((simple-array (complex double-float)) list)
+         (values (simple-array double-float) &optional))
+(defun %irfft (array dimensions)
+  "Perform IRFFT transform. This is a version of IRFFT without
+previously created plan. DIMENSIONS is a list of dimensions of the
+result."
+  (with-plan (plan create-irfft-plan dimensions)
+    (irfft plan array)))
