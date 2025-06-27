@@ -1,0 +1,50 @@
+@begin[ref=index](section)
+    @title(Overview)
+    @b(cl-fftw) is a wrapper around FFTW library (in double precision). There
+    are two types of functions: for use with plans and "fast" ones which are
+    prefixed with @c(%) and do not require manual plan creation.
+
+    This is a list of FFT functions which work with plans:
+    @begin(enum)
+        @item(@c(fft) does a complex-to-complex transform (in both directions).)
+        @item(@c(rfft) does a transform of real-valued input.)
+        @item(@c(irfft) is an inverse of @c(rfft).)
+    @end(enum)
+
+    Plans for these functions can be created as follows:
+    @begin(enum)
+        @item(@c(create-fft-plan) for @c(fft).)
+        @item(@c(create-rfft-plan) for @c(rfft).)
+        @item(@c(create-irfft-plan) for @c(irfft).)
+    @end(enum)
+
+    A plan must be destroyed with @c(destroy-plan) when it is no longer
+    needed. A convenient macro @c(with-plan) helps to control lifetime of a
+    plan.
+@end(section)
+
+@begin(section)
+    @title(API)
+    Management of plans:
+    @cl:with-package[name="cl-fftw"](
+      @cl:doc(function create-fft-plan)
+      @cl:doc(function create-rfft-plan)
+      @cl:doc(function create-irfft-plan)
+      @cl:doc(function destroy-plan)
+      @cl:doc(macro with-plan)
+   )
+
+   Basic FFT functions:
+   @cl:with-package[name="cl-fftw"](
+      @cl:doc(function fft)
+      @cl:doc(function rfft)
+      @cl:doc(function irfft)
+   )
+
+   "Fast" FFT functions (no plan creation required):
+   @cl:with-package[name="cl-fftw"](
+      @cl:doc(function %fft)
+      @cl:doc(function %rfft)
+      @cl:doc(function %irfft)
+   )
+@end(section)

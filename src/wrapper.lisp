@@ -104,17 +104,18 @@
               dimensions)))))))
 
 (def-create-plan create-fft-plan
-      "Create a plan for FFT transform (complex input). Sign is -1 for
-forward transform and 1 for inverse transform. The plan must be
-destroyed later with DESTROY-PLAN." t)
+    "Create a plan for FFT transform (complex input). Sign is
+@c(+forward+)(-1) for forward transform and @c(+backward)(+1) for
+inverse transform. The plan must be destroyed later with
+@c(destroy-plan)." t)
 
 (def-create-plan create-rfft-plan
     "Create a plan for the real-input forward FFT transform (RFFT). The
-plan must be destroyed later with DESTROY-PLAN." nil)
+plan must be destroyed later with @c(destroy-plan)." nil)
 
 (def-create-plan create-irfft-plan
     "Create a plan for the real-input inverse FFT transform (IRFFT). The
-plan must be destroyed later with DESTROY-PLAN." nil)
+plan must be destroyed later with @c(destroy-plan)." nil)
 
 (sera:-> destroy-plan (plan)
          (values &optional))
@@ -155,20 +156,20 @@ plan must be destroyed later with DESTROY-PLAN." nil)
          (copy-from-c! plan result)))))
 
 (def-fft (fft (complex double-float) (complex double-float) identity ())
-    "Perform FFT transform. ARRAY's and PLAN's dimensions must be the
-same.")
+    "Perform FFT transform. @c(array)'s and @c(plan)'s dimensions must
+be the same.")
 
 (def-fft (rfft double-float (complex double-float) rfft-dimensions ())
-    "Perform RFFT transform. ARRAY's and PLAN's dimensions must be the
-same.")
+    "Perform RFFT transform. @c(array)'s and @c(plan)'s dimensions must
+be the same.")
 
 (def-fft (irfft (complex double-float) double-float identity (:irfft t))
-    "Perform IRFFT transform. ARRAY's and PLAN's dimensions must be
-compatible.")
+    "Perform IRFFT transform. @c(array)'s and @c(plan)'s dimensions must
+be compatible.")
 
 (defmacro with-plan ((plan constructor dimensions &optional sign) &body body)
-  "Create an FFT plan with CONSTRUCTOR and make sure it is destroyed
-when control leaves BODY."
+  "Create an FFT plan with @c(constructor) and make sure it is destroyed
+when control leaves @c(body)."
   `(let ((,plan (,constructor ,dimensions ,@(if sign (list sign)))))
      (unwind-protect
           (progn ,@body)
@@ -194,7 +195,7 @@ previously created plan."
          (values (simple-array double-float) &optional))
 (defun %irfft (array dimensions)
   "Perform IRFFT transform. This is a version of IRFFT without
-previously created plan. DIMENSIONS is a list of dimensions of the
+previously created plan. @c(dimensions) is a list of dimensions of the
 result."
   (with-plan (plan create-irfft-plan dimensions)
     (irfft plan array)))
