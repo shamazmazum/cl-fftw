@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "libfftwrap.h"
+#include "libfftwrapd.h"
 
-struct fftw3_plan {
+struct fftw3d_plan {
     fftw_plan plan;
     void     *in;
     void     *out;
@@ -20,7 +20,7 @@ static size_t multiply_dimensions (int rank, const int *dimensions) {
     return total;
 }
 
-struct fftw3_plan* create_fft_plan (int rank, const int *dimensions, int sign) {
+struct fftw3d_plan* fftwrapd_create_fft_plan (int rank, const int *dimensions, int sign) {
     size_t total = multiply_dimensions (rank, dimensions);
     fftw_complex *array  = malloc (sizeof(fftw_complex) * total);
     fftw_plan plan = fftw_plan_dft (rank, dimensions, array, array, sign, FFTW_ESTIMATE);
@@ -29,7 +29,7 @@ struct fftw3_plan* create_fft_plan (int rank, const int *dimensions, int sign) {
         goto bad;
     }
 
-    struct fftw3_plan *res = malloc (sizeof(struct fftw3_plan));
+    struct fftw3d_plan *res = malloc (sizeof(struct fftw3d_plan));
     res->plan      = plan;
     res->in        = array;
     res->out       = NULL;
@@ -42,7 +42,7 @@ bad:
     return NULL;
 }
 
-struct fftw3_plan* create_rfft_plan (int rank, const int *dimensions) {
+struct fftw3d_plan* fftwrapd_create_rfft_plan (int rank, const int *dimensions) {
     size_t total_input  = multiply_dimensions (rank, dimensions);
     size_t total_output = total_input / dimensions[rank-1] * (dimensions[rank-1] / 2 + 1);
     double *input = malloc (sizeof(double) * total_input);
@@ -53,7 +53,7 @@ struct fftw3_plan* create_rfft_plan (int rank, const int *dimensions) {
         goto bad;
     }
 
-    struct fftw3_plan *res = malloc (sizeof(struct fftw3_plan));
+    struct fftw3d_plan *res = malloc (sizeof(struct fftw3d_plan));
     res->plan      = plan;
     res->in        = input;
     res->out       = output;
@@ -67,7 +67,7 @@ bad:
     return NULL;
 }
 
-struct fftw3_plan* create_irfft_plan (int rank, const int *dimensions) {
+struct fftw3d_plan* fftwrapd_create_irfft_plan (int rank, const int *dimensions) {
     size_t total_output  = multiply_dimensions (rank, dimensions);
     size_t total_input = total_output / dimensions[rank-1] * (dimensions[rank-1] / 2 + 1);
     fftw_complex *input = malloc (sizeof(fftw_complex) * total_input);
@@ -78,7 +78,7 @@ struct fftw3_plan* create_irfft_plan (int rank, const int *dimensions) {
         goto bad;
     }
 
-    struct fftw3_plan *res = malloc (sizeof(struct fftw3_plan));
+    struct fftw3d_plan *res = malloc (sizeof(struct fftw3d_plan));
     res->plan      = plan;
     res->in        = input;
     res->out       = output;
@@ -92,21 +92,21 @@ bad:
     return NULL;
 }
 
-void destroy_plan (struct fftw3_plan* plan) {
+void fftwrapd_destroy_plan (struct fftw3d_plan* plan) {
     fftw_destroy_plan (plan->plan);
     free (plan->in);
     free (plan->out);
     free (plan);
 }
 
-void* get_input_pointer (const struct fftw3_plan* plan) {
+void* fftwrapd_get_input_pointer (const struct fftw3d_plan* plan) {
     return plan->in;
 }
 
-void* get_output_pointer (const struct fftw3_plan* plan) {
+void* fftwrapd_get_output_pointer (const struct fftw3d_plan* plan) {
     return (plan->out != NULL)? plan->out: plan->in;
 }
 
-void execute_plan (const struct fftw3_plan *plan) {
+void fftwrapd_execute_plan (const struct fftw3d_plan *plan) {
     fftw_execute (plan->plan);
 }

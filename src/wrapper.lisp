@@ -4,44 +4,44 @@
        (asdf:output-file
         'asdf:compile-op
         (asdf:find-component
-         :cl-fftw "libfftwrap"))))
+         :cl-fftw "libfftwrapd"))))
   (pushnew
    (make-pathname
     :directory (pathname-directory pathname))
    *foreign-library-directories*
    :test #'equalp))
 
-(define-foreign-library libfftwrap
-  (:darwin (:or "libfftwrap.dylib" "fftwrap.dylib"))
-  (:unix  (:or "libfftwrap.so" "fftwrap.so"))
-  (:windows (:or "libfftwrap.dll" "fftwrap.dll"))
-  (t (:default "fftwrap")))
+(define-foreign-library libfftwrapd
+  (:darwin (:or "libfftwrapd.dylib" "fftwrapd.dylib"))
+  (:unix  (:or "libfftwrapd.so" "fftwrapd.so"))
+  (:windows (:or "libfftwrapd.dll" "fftwrapd.dll"))
+  (t (:default "fftwrapd")))
 
-(use-foreign-library libfftwrap)
+(use-foreign-library libfftwrapd)
 
-(defcfun ("create_fft_plan" %create-fft-plan) :pointer
+(defcfun ("fftwrapd_create_fft_plan" %create-fft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int))
   (sign       :int))
 
-(defcfun ("create_rfft_plan" %create-rfft-plan) :pointer
+(defcfun ("fftwrapd_create_rfft_plan" %create-rfft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int)))
 
-(defcfun ("create_irfft_plan" %create-irfft-plan) :pointer
+(defcfun ("fftwrapd_create_irfft_plan" %create-irfft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int)))
 
-(defcfun ("destroy_plan" %destroy-plan) :void
+(defcfun ("fftwrapd_destroy_plan" %destroy-plan) :void
   (plan :pointer))
 
-(defcfun ("get_input_pointer" get-input-pointer) :pointer
+(defcfun ("fftwrapd_get_input_pointer" get-input-pointer) :pointer
   (plan :pointer))
 
-(defcfun ("get_output_pointer" get-output-pointer) :pointer
+(defcfun ("fftwrapd_get_output_pointer" get-output-pointer) :pointer
   (plan :pointer))
 
-(defcfun ("execute_plan" execute-plan) :pointer
+(defcfun ("fftwrapd_execute_plan" execute-plan) :pointer
   (plan :pointer))
 
 (sera:defconstructor plan

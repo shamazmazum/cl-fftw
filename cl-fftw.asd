@@ -15,7 +15,7 @@
 
 (defmethod output-files ((operation compile-op) (component c->so))
   (values (list (asdf:apply-output-translations
-                 (make-pathname :name "libfftwrap"
+                 (make-pathname :name "libfftwrapd"
                                 :type (dynamic-library-extension)
                                 :defaults (component-pathname component))))
           t))
@@ -44,7 +44,7 @@
   :pathname "src"
   :serial t
   :components ((:file  "package")
-               (:c->so "libfftwrap")
+               (:c->so "libfftwrapd")
                (:file  "wrapper"))
   :depends-on (:cffi :serapeum)
   :in-order-to ((test-op (load-op "cl-fftw/tests")))
