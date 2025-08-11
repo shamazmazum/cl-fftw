@@ -1,7 +1,9 @@
 ;; Stolen from MAGICL
 
 (defclass c->so (asdf:source-file)
-  ()
+  ((link-with :initarg  :link-with
+              :initform (error "LINK-WITH is not specified")
+              :reader   link-with))
   (:default-initargs
    :type "c"))
 
@@ -33,7 +35,7 @@
              #+freebsd "-I/usr/local/include"
              #+freebsd "-L/usr/local/lib"
              "-o" (nn shared-object) (nn c-file)
-             "-lfftw3")))))
+             (format nil "-l~a" (link-with component)))))))
 
 (defsystem :cl-fftw
   :name :cl-fftw
@@ -44,7 +46,7 @@
   :pathname "src"
   :serial t
   :components ((:file  "package")
-               (:c->so "libfftwrapd")
+               (:c->so "libfftwrapd" :link-with "fftw3")
                (:file  "wrapper"))
   :depends-on (:cffi :serapeum)
   :in-order-to ((test-op (load-op "cl-fftw/tests")))
