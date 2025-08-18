@@ -17,7 +17,7 @@
 
 (defmethod output-files ((operation compile-op) (component c->so))
   (values (list (asdf:apply-output-translations
-                 (make-pathname :name "libfftwrapd"
+                 (make-pathname :name (pathname-name (component-pathname component))
                                 :type (dynamic-library-extension)
                                 :defaults (component-pathname component))))
           t))
