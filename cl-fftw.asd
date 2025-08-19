@@ -45,8 +45,8 @@
   :licence "2-clause BSD"
   :pathname "core"
   :serial t
-  :components ((:file  "package")
-               (:file  "core")))
+  :components ((:file "package")
+               (:file "core")))
 
 (defsystem :cl-fftw/double
   :name :cl-fftw/double
@@ -91,4 +91,8 @@
     :pathname "tests"
     :components ((:file "package")
                  (:file "tests" :depends-on ("package")))
-    :depends-on (:cl-fftw :yaft :array-operations :fiveam))
+    :depends-on (:cl-fftw
+                 :yaft
+                 :array-operations
+                 :fiveam
+                 :approx))

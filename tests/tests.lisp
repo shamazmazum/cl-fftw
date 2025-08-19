@@ -29,41 +29,6 @@
                   :element-type (if complexp (list 'complex type) type)
                   :initial-contents (%go dimensions)))))
 
-(defun eps (one)
-  (labels ((%go (eps)
-             (if (= (+ one eps) one) eps
-                 (%go (/ eps 2)))))
-    (%go one)))
-
-(defun norm (xs)
-  (sqrt
-   (loop for i below (array-total-size xs) sum
-         (expt (abs (row-major-aref xs i)) 2))))
-
-(defun dist (xs ys)
-  (assert (equalp (array-dimensions xs)
-                  (array-dimensions ys)))
-  (sqrt
-   (loop for i below (array-total-size xs) sum
-         (expt (abs
-                (- (row-major-aref xs i)
-                   (row-major-aref ys i)))
-               2))))
-
-(defun approxp (x y)
-  (let ((eps (eps (* (float 1 (realpart x))
-                     (float 1 (realpart y))))))
-    (< (abs (- x y))
-       (* (sqrt (* eps 2)) (max (abs x) (abs y))))))
-
-(defun array-approx-p (xs ys)
-  (let* ((dist (dist xs ys))
-         (nxs  (norm xs))
-         (nys  (norm ys))
-         (eps (eps (* (float 1 nxs)
-                      (float 1 nys)))))
-    (< dist (* (sqrt (* eps 2)) (max nxs nys)))))
-
 
 (in-suite one-dim/double)
 (test complex/yaft/double
@@ -72,7 +37,7 @@
         for array  = (random-content (list length) 'double-float :complexp t)
         for fft1 = (yaft:fft array yaft:+forward+)
         for fft2 = (cl-fftw/double:%fft array cl-fftw/core:+forward+)
-        do (is-true (array-approx-p fft1 fft2))))
+        do (is-true (approx:array-approx-p fft1 fft2))))
 
 (test real/yaft/double
   (loop repeat 1000
@@ -80,7 +45,7 @@
         for array  = (random-content (list length) 'double-float :complexp nil)
         for fft1   = (yaft:rfft array)
         for fft2   = (cl-fftw/double:%rfft array)
-        do (is-true (array-approx-p fft1 fft2))))
+        do (is-true (approx:array-approx-p fft1 fft2))))
 
 (in-suite props/double)
 (test fft/double
@@ -91,11 +56,11 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/double:%fft array   cl-fftw/core:+forward+)
         for inverse = (cl-fftw/double:%fft forward cl-fftw/core:+backward+) do
-        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
                   (aops:flatten array))
-        (is-true (array-approx-p
+        (is-true (approx:array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
 
@@ -107,11 +72,11 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/double:%rfft array)
         for inverse = (cl-fftw/double:%irfft forward dims) do
-        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
                   (aops:flatten array))
-        (is-true (array-approx-p
+        (is-true (approx:array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
 
@@ -124,11 +89,11 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/single:%fft array   cl-fftw/core:+forward+)
         for inverse = (cl-fftw/single:%fft forward cl-fftw/core:+backward+) do
-        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
                   (aops:flatten array))
-        (is-true (array-approx-p
+        (is-true (approx:array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
 
@@ -140,10 +105,10 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/single:%rfft array)
         for inverse = (cl-fftw/single:%irfft forward dims) do
-        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten inverse)
                   (lambda (x) (/ x total))
                   (aops:flatten inverse))
-        (is-true (array-approx-p
+        (is-true (approx:array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
