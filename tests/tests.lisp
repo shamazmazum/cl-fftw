@@ -71,7 +71,7 @@
         for length = (+ (random 4000) 2)
         for array  = (random-content (list length) 'double-float :complexp t)
         for fft1 = (yaft:fft array yaft:+forward+)
-        for fft2 = (cl-fftw/double:%fft array cl-fftw/double:+forward+)
+        for fft2 = (cl-fftw/double:%fft array cl-fftw/core:+forward+)
         do (is-true (array-approx-p fft1 fft2))))
 
 (test real/yaft/double
@@ -89,8 +89,8 @@
         for dims  = (loop repeat rank collect (1+ (random 100)))
         for array = (random-content dims 'double-float :complexp t)
         for total = (array-total-size array)
-        for forward = (cl-fftw/double:%fft array   cl-fftw/double:+forward+)
-        for inverse = (cl-fftw/double:%fft forward cl-fftw/double:+backward+) do
+        for forward = (cl-fftw/double:%fft array   cl-fftw/core:+forward+)
+        for inverse = (cl-fftw/double:%fft forward cl-fftw/core:+backward+) do
         (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
@@ -122,8 +122,8 @@
         for dims  = (loop repeat rank collect (1+ (random 10)))
         for array = (random-content dims 'single-float :complexp t)
         for total = (array-total-size array)
-        for forward = (cl-fftw/single:%fft array   cl-fftw/single:+forward+)
-        for inverse = (cl-fftw/single:%fft forward cl-fftw/single:+backward+) do
+        for forward = (cl-fftw/single:%fft array   cl-fftw/core:+forward+)
+        for inverse = (cl-fftw/single:%fft forward cl-fftw/core:+backward+) do
         (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))

@@ -37,6 +37,17 @@
              "-o" (nn shared-object) (nn c-file)
              (format nil "-l~a" (link-with component)))))))
 
+(defsystem :cl-fftw/core
+  :name :cl-fftw/core
+  :version "0.1"
+  :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
+  :description "A wrapper for FFTW (general constants)"
+  :licence "2-clause BSD"
+  :pathname "core"
+  :serial t
+  :components ((:file  "package")
+               (:file  "core")))
+
 (defsystem :cl-fftw/double
   :name :cl-fftw/double
   :version "0.1"
@@ -48,7 +59,7 @@
   :components ((:file  "package")
                (:c->so "libfftwrapd" :link-with "fftw3")
                (:file  "wrapper"))
-  :depends-on (:cffi :serapeum))
+  :depends-on (:cffi :serapeum :cl-fftw/core))
 
 (defsystem :cl-fftw/single
   :name :cl-fftw/single
@@ -61,7 +72,7 @@
   :components ((:file  "package")
                (:c->so "libfftwraps" :link-with "fftw3f")
                (:file  "wrapper"))
-  :depends-on (:cffi :serapeum))
+  :depends-on (:cffi :serapeum :cl-fftw/core))
 
 (defsystem :cl-fftw
   :name :cl-fftw
