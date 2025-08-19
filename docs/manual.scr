@@ -1,8 +1,8 @@
 @begin[ref=index](section)
     @title(Overview)
-    @b(cl-fftw) is a wrapper around FFTW library (in double precision). There
-    are two types of functions: for use with plans and "fast" ones which are
-    prefixed with @c(%) and do not require manual plan creation.
+    @b(cl-fftw) is a wrapper around FFTW library (in double and single
+    precision). There are two types of functions: for use with plans and "fast"
+    ones which are prefixed with @c(%) and do not require manual plan creation.
 
     This is a list of FFT functions which work with plans:
     @begin(enum)
@@ -21,12 +21,24 @@
     A plan must be destroyed with @c(destroy-plan) when it is no longer
     needed. A convenient macro @c(with-plan) helps to control lifetime of a
     plan.
+
+    There are two packages: @c(cl-fftw/double) and @c(cl-fftw/single) which have
+    the same set of functions but work with different precision. Two commonly
+    used constants, @c(+forward+) and @c(+backward+) which are used to specify
+    the transform's direction are in @c(cl-fftw/core) package.
 @end(section)
 
 @begin(section)
     @title(API)
-    Management of plans:
-    @cl:with-package[name="cl-fftw"](
+    Core constants (@c(cl-fftw/core) package):
+    @cl:with-package[name="cl-fftw/core"](
+      @cl:doc(variable +forward+)
+      @cl:doc(variable +backward+)
+    )
+
+    Management of plans. Here and below you can choose @c(cl-fftw/double) and/or
+    @c(cl-fftw/single) package:
+    @cl:with-package[name="cl-fftw/double"](
       @cl:doc(function create-fft-plan)
       @cl:doc(function create-rfft-plan)
       @cl:doc(function create-irfft-plan)
@@ -35,14 +47,14 @@
    )
 
    Basic FFT functions:
-   @cl:with-package[name="cl-fftw"](
+   @cl:with-package[name="cl-fftw/double"](
       @cl:doc(function fft)
       @cl:doc(function rfft)
       @cl:doc(function irfft)
    )
 
    "Fast" FFT functions (no plan creation required):
-   @cl:with-package[name="cl-fftw"](
+   @cl:with-package[name="cl-fftw/double"](
       @cl:doc(function %fft)
       @cl:doc(function %rfft)
       @cl:doc(function %irfft)
