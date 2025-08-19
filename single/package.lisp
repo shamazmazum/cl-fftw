@@ -1,4 +1,4 @@
-(defpackage cl-fftw
+(defpackage cl-fftw/single
   (:use #:cl #:cffi)
   (:local-nicknames (#:sera #:serapeum))
   (:export #:plan

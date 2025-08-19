@@ -1,7 +1,8 @@
 (in-package :cl-fftw/tests)
 
-(def-suite one-dim :description "One dimensional transforms")
-(def-suite props   :description "Generic FFT properties")
+(def-suite one-dim/double :description "One dimensional transforms (double precision)")
+(def-suite props/double :description "Generic FFT properties (double precision)")
+(def-suite props/single :description "Generic FFT properties (single precision)")
 
 (defun run-tests ()
   (every #'identity
@@ -9,97 +10,140 @@
                    (let ((status (run suite)))
                      (explain! status)
                      (results-status status)))
-                 '(one-dim props))))
+                 '(one-dim/double props/double props/single))))
 
-(defun random-content (dimensions &key complexp)
-  (if (null (cdr dimensions))
-      (loop repeat (car dimensions) collect
-            (if complexp
-                (complex (random 1d0)
-                         (random 1d0))
-                (random 1d0)))
-      (loop repeat (car dimensions) collect
-            (random-content (cdr dimensions)
-                            :complexp complexp))))
+(defun random-content (dimensions type &key complexp)
+  (let ((const (ecase type
+                 (single-float 1f0)
+                 (double-float 1d0))))
+    (labels ((%go (dimensions)
+               (if (null (cdr dimensions))
+                   (loop repeat (car dimensions) collect
+                         (if complexp
+                             (complex (random const)
+                                      (random const))
+                             (random const)))
+                   (loop repeat (car dimensions) collect
+                         (%go (cdr dimensions))))))
+      (make-array dimensions
+                  :element-type (if complexp (list 'complex type) type)
+                  :initial-contents (%go dimensions)))))
 
-(defun arrays-almost-equal-p (xs ys)
-  (flet ((almost-equal (x y)
-           (< (- x y) 1d-8)))
-    (cond
-      ((and (subtypep (array-element-type xs) 'complex)
-            (subtypep (array-element-type ys) 'complex))
-       (every (lambda (x y)
-                (and (almost-equal (realpart x)
-                                   (realpart y))
-                     (almost-equal (imagpart x)
-                                   (imagpart y))))
-              xs ys))
-      ((and (subtypep (array-element-type xs) 'real)
-            (subtypep (array-element-type ys) 'real))
-       (every #'almost-equal xs ys)))))
+(defun eps (one)
+  (labels ((%go (eps)
+             (if (= (+ one eps) one) eps
+                 (%go (/ eps 2)))))
+    (%go one)))
+
+(defun norm (xs)
+  (sqrt
+   (loop for i below (array-total-size xs) sum
+         (expt (abs (row-major-aref xs i)) 2))))
+
+(defun dist (xs ys)
+  (assert (equalp (array-dimensions xs)
+                  (array-dimensions ys)))
+  (sqrt
+   (loop for i below (array-total-size xs) sum
+         (expt (abs
+                (- (row-major-aref xs i)
+                   (row-major-aref ys i)))
+               2))))
+
+(defun approxp (x y)
+  (let ((eps (eps (* (float 1 (realpart x))
+                     (float 1 (realpart y))))))
+    (< (abs (- x y))
+       (* (sqrt (* eps 2)) (max (abs x) (abs y))))))
+
+(defun array-approx-p (xs ys)
+  (let* ((dist (dist xs ys))
+         (nxs  (norm xs))
+         (nys  (norm ys))
+         (eps (eps (* (float 1 nxs)
+                      (float 1 nys)))))
+    (< dist (* (sqrt (* eps 2)) (max nxs nys)))))
 
 
-(in-suite one-dim)
-(test complex/yaft
+(in-suite one-dim/double)
+(test complex/yaft/double
   (loop repeat 1000
         for length = (+ (random 4000) 2)
-        for array  = (make-array length
-                                 :element-type '(complex double-float)
-                                 :initial-contents (loop repeat length collect
-                                                         (complex
-                                                          (random 1d0)
-                                                          (random 1d0))))
+        for array  = (random-content (list length) 'double-float :complexp t)
         for fft1 = (yaft:fft array yaft:+forward+)
-        for fft2 = (cl-fftw:%fft array cl-fftw:+forward+)
-        do (is-true (arrays-almost-equal-p fft1 fft2))))
+        for fft2 = (cl-fftw/double:%fft array cl-fftw/double:+forward+)
+        do (is-true (array-approx-p fft1 fft2))))
 
-(test real/yaft
+(test real/yaft/double
   (loop repeat 1000
         for length = (* (+ (random 4000) 2) 2)
-        for array  = (make-array length
-                                 :element-type 'double-float
-                                 :initial-contents (loop repeat length collect (random 1d0)))
+        for array  = (random-content (list length) 'double-float :complexp nil)
         for fft1   = (yaft:rfft array)
-        for fft2   = (cl-fftw:%rfft array)
-        do (is-true (arrays-almost-equal-p fft1 fft2))))
+        for fft2   = (cl-fftw/double:%rfft array)
+        do (is-true (array-approx-p fft1 fft2))))
 
-(in-suite props)
-(test fft
+(in-suite props/double)
+(test fft/double
   (loop repeat 1000
         for rank  = (1+ (random 3))
         for dims  = (loop repeat rank collect (1+ (random 100)))
-        for array = (make-array dims
-                                :element-type '(complex double-float)
-                                :initial-contents (random-content dims :complexp t))
+        for array = (random-content dims 'double-float :complexp t)
         for total = (array-total-size array)
-        for forward = (cl-fftw:%fft array   cl-fftw:+forward+)
-        for inverse = (cl-fftw:%fft forward cl-fftw:+backward+) do
-        (is (< (abs (- (row-major-aref forward 0)
-                       (reduce #'+ (aops:flatten array))))
-               1d-6))
+        for forward = (cl-fftw/double:%fft array   cl-fftw/double:+forward+)
+        for inverse = (cl-fftw/double:%fft forward cl-fftw/double:+backward+) do
+        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
                   (aops:flatten array))
-        (is-true (arrays-almost-equal-p
+        (is-true (array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
 
-(test rfft
+(test rfft/double
   (loop repeat 1000
         for rank  = (1+ (random 3))
         for dims  = (loop repeat rank collect (1+ (random 100)))
-        for array = (make-array dims
-                                :element-type 'double-float
-                                :initial-contents (random-content dims :complexp nil))
+        for array = (random-content dims 'double-float :complexp nil)
         for total = (array-total-size array)
-        for forward = (cl-fftw:%rfft array)
-        for inverse = (cl-fftw:%irfft forward dims) do
-        (is (< (abs (- (row-major-aref forward 0)
-                       (reduce #'+ (aops:flatten array))))
-               1d-6))
+        for forward = (cl-fftw/double:%rfft array)
+        for inverse = (cl-fftw/double:%irfft forward dims) do
+        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
         (map-into (aops:flatten array)
                   (lambda (x) (* x total))
                   (aops:flatten array))
-        (is-true (arrays-almost-equal-p
+        (is-true (array-approx-p
+                  (aops:flatten array)
+                  (aops:flatten inverse)))))
+
+(in-suite props/single)
+(test fft/single
+  (loop repeat 1000
+        for rank  = (1+ (random 3))
+        for dims  = (loop repeat rank collect (1+ (random 10)))
+        for array = (random-content dims 'single-float :complexp t)
+        for total = (array-total-size array)
+        for forward = (cl-fftw/single:%fft array   cl-fftw/single:+forward+)
+        for inverse = (cl-fftw/single:%fft forward cl-fftw/single:+backward+) do
+        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (map-into (aops:flatten array)
+                  (lambda (x) (* x total))
+                  (aops:flatten array))
+        (is-true (array-approx-p
+                  (aops:flatten array)
+                  (aops:flatten inverse)))))
+
+(test rfft/single
+  (loop repeat 1000
+        for rank  = (1+ (random 3))
+        for dims  = (loop repeat rank collect (1+ (random 10)))
+        for array = (random-content dims 'single-float :complexp nil)
+        for total = (array-total-size array)
+        for forward = (cl-fftw/single:%rfft array)
+        for inverse = (cl-fftw/single:%irfft forward dims) do
+        (is (approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
+        (map-into (aops:flatten inverse)
+                  (lambda (x) (/ x total))
+                  (aops:flatten inverse))
+        (is-true (array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))

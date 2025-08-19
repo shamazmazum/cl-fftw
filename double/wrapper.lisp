@@ -1,10 +1,10 @@
-(in-package :cl-fftw)
+(in-package :cl-fftw/double)
 
 (let ((pathname
        (asdf:output-file
         'asdf:compile-op
         (asdf:find-component
-         :cl-fftw "libfftwrapd"))))
+         :cl-fftw/double "libfftwrapd"))))
   (pushnew
    (make-pathname
     :directory (pathname-directory pathname))

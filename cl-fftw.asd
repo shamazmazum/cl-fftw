@@ -37,18 +37,39 @@
              "-o" (nn shared-object) (nn c-file)
              (format nil "-l~a" (link-with component)))))))
 
+(defsystem :cl-fftw/double
+  :name :cl-fftw/double
+  :version "0.1"
+  :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
+  :description "A wrapper for FFTW (double precision)"
+  :licence "2-clause BSD"
+  :pathname "double"
+  :serial t
+  :components ((:file  "package")
+               (:c->so "libfftwrapd" :link-with "fftw3")
+               (:file  "wrapper"))
+  :depends-on (:cffi :serapeum))
+
+(defsystem :cl-fftw/single
+  :name :cl-fftw/single
+  :version "0.1"
+  :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
+  :description "A wrapper for FFTW (single precision)"
+  :licence "2-clause BSD"
+  :pathname "single"
+  :serial t
+  :components ((:file  "package")
+               (:c->so "libfftwraps" :link-with "fftw3f")
+               (:file  "wrapper"))
+  :depends-on (:cffi :serapeum))
+
 (defsystem :cl-fftw
   :name :cl-fftw
   :version "0.1"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "A wrapper for FFTW"
   :licence "2-clause BSD"
-  :pathname "src"
-  :serial t
-  :components ((:file  "package")
-               (:c->so "libfftwrapd" :link-with "fftw3")
-               (:file  "wrapper"))
-  :depends-on (:cffi :serapeum)
+  :depends-on (:cl-fftw/double :cl-fftw/single)
   :in-order-to ((test-op (load-op "cl-fftw/tests")))
   :perform (test-op (op system)
                     (declare (ignore op system))
