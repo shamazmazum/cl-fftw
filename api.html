@@ -51,7 +51,12 @@
     </aside>
     <main class="codex-section">
       <p>
-    Management of plans:
+    Core constants (<code>cl-fftw/core</code> package):
+    
+      <div class="codex-doc-node codex-variable"><code class="codex-name">+forward+</code><div class="codex-docstring">Designates a forward Fourier transform</div></div>
+      <div class="codex-doc-node codex-variable"><code class="codex-name">+backward+</code><div class="codex-docstring">Designates an inverse Fourier transform</div></div>
+    </p><p>    Management of plans. Here and below you can choose <code>cl-fftw/double</code> and/or
+    <code>cl-fftw/single</code> package:
     
       <div class="codex-doc-node codex-operator codex-function"><code class="codex-name">create-fft-plan</code><code class="codex-lambda-list">(dimensions sign)</code><div class="codex-docstring">Create a plan for FFT transform (complex input). Sign is
 <code>+forward+</code>(-1) for forward transform and <code>+backward</code>(+1) for

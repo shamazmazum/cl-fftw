@@ -51,13 +51,16 @@
     </aside>
     <main class="codex-section">
       <p>
-    <b>cl-fftw</b> is a wrapper around FFTW library (in double precision). There
-    are two types of functions: for use with plans and &quot;fast&quot; ones which are
-    prefixed with <code>%</code> and do not require manual plan creation.</p><p>    This is a list of FFT functions which work with plans:
+    <b>cl-fftw</b> is a wrapper around FFTW library (in double and single
+    precision). There are two types of functions: for use with plans and &quot;fast&quot;
+    ones which are prefixed with <code>%</code> and do not require manual plan creation.</p><p>    This is a list of FFT functions which work with plans:
     </p><ol><li><code>fft</code> does a complex-to-complex transform (in both directions).</li><li><code>rfft</code> does a transform of real-valued input.</li><li><code>irfft</code> is an inverse of <code>rfft</code>.</li></ol><p>    Plans for these functions can be created as follows:
     </p><ol><li><code>create-fft-plan</code> for <code>fft</code>.</li><li><code>create-rfft-plan</code> for <code>rfft</code>.</li><li><code>create-irfft-plan</code> for <code>irfft</code>.</li></ol><p>    A plan must be destroyed with <code>destroy-plan</code> when it is no longer
     needed. A convenient macro <code>with-plan</code> helps to control lifetime of a
-    plan.
+    plan.</p><p>    There are two packages: <code>cl-fftw/double</code> and <code>cl-fftw/single</code> which have
+    the same set of functions but work with different precision. Two commonly
+    used constants, <code>+forward+</code> and <code>+backward+</code> which are used to specify
+    the transform's direction are in <code>cl-fftw/core</code> package.
 </p>
     </main>
   </article>
