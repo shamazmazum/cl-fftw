@@ -34,3 +34,7 @@
  (:class qlot/source/github:source-github
   :initargs (:repos "melisgl/named-readtables" :ref nil :branch nil :tag nil)
   :version "github-aa6dab55abff3cca26b976d9a105c2006ca0c3b6"))
+("shamazmazum-approx" .
+ (:class qlot/source/ultralisp:source-ultralisp
+  :initargs (:%version :latest)
+  :version "ultralisp-20260204141501"))
