@@ -87,12 +87,17 @@
                     (uiop:symbol-call :cl-fftw/tests '#:run-tests)))
 
 (defsystem :cl-fftw/tests
-    :name :cl-fftw/tests
-    :pathname "tests"
-    :components ((:file "package")
-                 (:file "tests" :depends-on ("package")))
-    :depends-on (:cl-fftw
-                 :yaft
-                 :array-operations
-                 :fiveam
-                 :approx))
+  :name :cl-fftw/tests
+  :pathname "tests"
+  :components ((:file "package")
+               (:file "tests" :depends-on ("package")))
+  :depends-on (:cl-fftw
+               :yaft
+               :array-operations
+               :fiveam
+               :approx))
+
+;; For qlot
+(defsystem :cl-fftw/docs
+  :name :cl-fftw/docs
+  :depends-on (:cl-fftw :codex))

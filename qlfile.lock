@@ -30,3 +30,7 @@
  (:class qlot/source/github:source-github
   :initargs (:repos "shamazmazum/codex" :ref nil :branch nil :tag nil)
   :version "github-4fb740a6566caae70e7cd6111535edd91a7ca18e"))
+("named-readtables" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "melisgl/named-readtables" :ref nil :branch nil :tag nil)
+  :version "github-aa6dab55abff3cca26b976d9a105c2006ca0c3b6"))
