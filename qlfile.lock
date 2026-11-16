@@ -1,15 +1,15 @@
 ("quicklisp" .
  (:class qlot/source/dist:source-dist
   :initargs (:distribution "https://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
-  :version "2025-06-22"))
+  :version "2026-01-01"))
 ("cffi" .
  (:class qlot/source/ql:source-ql
   :initargs (:%version :latest)
-  :version "ql-2025-06-22"))
+  :version "ql-2026-01-01"))
 ("serapeum" .
  (:class qlot/source/ql:source-ql
   :initargs (:%version :latest)
-  :version "ql-2025-06-22"))
+  :version "ql-2026-01-01"))
 ("fiveam" .
  (:class qlot/source/ql:source-ql
   :initargs (:%version :latest)
@@ -25,11 +25,11 @@
 ("codex" .
  (:class qlot/source/github:source-github
   :initargs (:repos "shamazmazum/codex" :ref nil :branch nil :tag nil)
-  :version "github-4fb740a6566caae70e7cd6111535edd91a7ca18e"))
+  :version "github-67a554ffb78cc6f050ffc4d38a97777ed836db7e"))
 ("named-readtables" .
  (:class qlot/source/github:source-github
   :initargs (:repos "melisgl/named-readtables" :ref nil :branch nil :tag nil)
-  :version "github-aa6dab55abff3cca26b976d9a105c2006ca0c3b6"))
+  :version "github-9b774b51a08124c41881f10b30fb33425a3e6085"))
 ("yaft" .
  (:class qlot/source/github:source-github
   :initargs (:repos "shamazmazum/yaft" :ref nil :branch nil :tag "v0.2")
