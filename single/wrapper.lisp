@@ -26,13 +26,6 @@
 (defcfun ("fftwf_destroy_plan" %%destroy-plan) :void
   (plan :pointer))
 
-(sera:defconstructor fft-plan
-  "FFT plan handle"
-  (obj  t)
-  (dims list)
-  (src  (simple-array (complex single-float) (*)))
-  (dst  (simple-array (complex single-float) (*))))
-
 (sera:-> %plan-fft (list (member -1 +1) t t)
          (values t &optional))
 (defun %plan-fft (dimensions sign inptr outptr)
@@ -55,7 +48,6 @@
    (fft-plan-obj plan))
   (values))
 
-(serapeum:-> %with-fft-plan (list (member -1 +1) (function (fft-plan) *)) *)
 (defun %with-fft-plan (dimensions sign f)
   (declare (optimize (speed 3)))
   (let* ((size (reduce #'* dimensions))

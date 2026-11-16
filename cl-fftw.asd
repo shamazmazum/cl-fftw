@@ -74,7 +74,9 @@
   :serial t
   :components ((:file  "package")
                (:c->so "libfftwraps" :link-with "fftw3f")
-               (:file  "wrapper"))
+               (:file  "fndb")
+               (:file  "wrapper")
+               (:file  "type-derivers"))
   :depends-on (:cl-fftw/core))
 
 (defsystem :cl-fftw
