@@ -45,6 +45,7 @@
   :licence "2-clause BSD"
   :pathname "core"
   :serial t
+  :depends-on (:serapeum)
   :components ((:file "package")
                (:file "core")))
 
@@ -59,7 +60,7 @@
   :components ((:file  "package")
                (:c->so "libfftwrapd" :link-with "fftw3")
                (:file  "wrapper"))
-  :depends-on (:cffi :serapeum :cl-fftw/core))
+  :depends-on (:cffi :cl-fftw/core))
 
 (defsystem :cl-fftw/single
   :name :cl-fftw/single
@@ -72,7 +73,7 @@
   :components ((:file  "package")
                (:c->so "libfftwraps" :link-with "fftw3f")
                (:file  "wrapper"))
-  :depends-on (:cffi :serapeum :cl-fftw/core))
+  :depends-on (:cffi :cl-fftw/core))
 
 (defsystem :cl-fftw
   :name :cl-fftw

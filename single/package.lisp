@@ -1,7 +1,13 @@
 (defpackage cl-fftw/single
   (:use #:cl #:cffi)
-  (:local-nicknames (#:sera #:serapeum))
-  (:export #:plan
+  (:local-nicknames (#:sera #:serapeum)
+                    (#:core #:cl-fftw/core))
+  (:export #:fft-plan
+           #:with-fft-plan
+           #:fft #:%fft
+
+   ;; OLD API
+   #:plan
            #:destroy-plan
            #:create-fft-plan
            #:create-rfft-plan

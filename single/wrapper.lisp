@@ -1,5 +1,123 @@
 (in-package :cl-fftw/single)
 
+;; Copiers
+(core:def-copier-to-foreign   copy-complex-to-foreign   (complex single-float))
+(core:def-copier-from-foreign copy-complex-from-foreign (complex single-float))
+
+(define-foreign-library libfftw3f
+  (:darwin (:or "libfftw3f.dylib"))
+  (:unix  (:or "libfftw3f.so.3" "libfftw3f.so"))
+  (:windows (:or "libfftw3f.dll"))
+  (t (:default "fftw3f")))
+
+(use-foreign-library libfftw3f)
+
+(defconstant +fftw-estimate+ 64)
+
+;; FFT
+(defcfun ("fftwf_plan_dft" %%plan-fft) :pointer
+  (rank       :int)
+  (dimensions (:pointer :int))
+  (in         :pointer)
+  (out        :pointer)
+  (sign       :int)
+  (flags      :uint))
+
+(defcfun ("fftwf_destroy_plan" %%destroy-plan) :void
+  (plan :pointer))
+
+(sera:defconstructor fft-plan
+  "FFT plan handle"
+  (obj  t)
+  (dims list)
+  (src  (simple-array (complex single-float) (*)))
+  (dst  (simple-array (complex single-float) (*))))
+
+(sera:-> %plan-fft (list (member -1 +1) t t)
+         (values t &optional))
+(defun %plan-fft (dimensions sign inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (loop for i below rank
+            for d in dimensions
+            do (setf (mem-aref dimptr :int i) d))
+      (let ((plan (%%plan-fft rank dimptr inptr outptr sign +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create FFT plan"))
+        plan))))
+
+(sera:-> %destroy-fft-plan (fft-plan)
+         (values &optional))
+(defun %destroy-fft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (fft-plan-obj plan))
+  (values))
+
+(serapeum:-> %with-fft-plan (list (member -1 +1) (function (fft-plan) *)) *)
+(defun %with-fft-plan (dimensions sign f)
+  (declare (optimize (speed 3)))
+  (let* ((size (reduce #'* dimensions))
+         (input  (make-array size :element-type '(complex single-float)))
+         (output (make-array size :element-type '(complex single-float))))
+    (declare (type integer size))
+    (with-pointer-to-vector-data (inptr input)
+      (with-pointer-to-vector-data (outptr output)
+        (let ((plan (fft-plan (%plan-fft dimensions sign inptr outptr)
+                              dimensions input output)))
+          (unwind-protect
+               (funcall f plan)
+            (%destroy-fft-plan plan)))))))
+
+(defmacro with-fft-plan ((plan dimensions sign) &body body)
+  "Create an FFT plan with and make sure it is destroyed when control
+leaves @c(body)."
+  `(%with-fft-plan
+    ,dimensions ,sign
+    (lambda (,plan)
+      ,@body)))
+
+(defcfun ("fftwf_execute" %execute) :void
+  (plan :pointer))
+
+(serapeum:-> fft (fft-plan (simple-array (complex single-float)))
+             (values (simple-array (complex single-float)) &optional))
+(declaim (inline fft))
+(defun fft (plan array)
+  "Perform FFT transform. @c(array)'s and @c(plan)'s dimensions must
+be the same."
+  (unless (equalp (array-dimensions array)
+                  (fft-plan-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (array-dimensions array)
+                            :element-type '(complex single-float))))
+    (copy-complex-to-foreign array (fft-plan-src plan))
+    (%execute (fft-plan-obj plan))
+    (copy-complex-from-foreign (fft-plan-dst plan) result)
+    result))
+
+(sera:-> %fft ((simple-array (complex single-float)) (member -1 +1))
+         (values (simple-array (complex single-float)) &optional))
+(defun %fft (array sign)
+  "Perform FFT transform. This is a version of FFT without previously
+created plan."
+  (with-fft-plan (plan (array-dimensions array) sign)
+    (fft plan array)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+#|
 (let ((pathname
        (asdf:output-file
         'asdf:compile-op
@@ -199,3 +317,4 @@ previously created plan. @c(dimensions) is a list of dimensions of the
 result."
   (with-plan (plan create-irfft-plan dimensions)
     (irfft plan array)))
+|#
