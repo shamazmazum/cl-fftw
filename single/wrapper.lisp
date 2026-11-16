@@ -1,6 +1,8 @@
 (in-package :cl-fftw/single)
 
 ;; Copiers
+(core:def-copier-to-foreign   copy-to-foreign   single-float)
+(core:def-copier-from-foreign copy-from-foreign single-float)
 (core:def-copier-to-foreign   copy-complex-to-foreign   (complex single-float))
 (core:def-copier-from-foreign copy-complex-from-foreign (complex single-float))
 
@@ -26,15 +28,22 @@
 (defcfun ("fftwf_destroy_plan" %%destroy-plan) :void
   (plan :pointer))
 
+(defcfun ("fftwf_execute" %execute) :void
+  (plan :pointer))
+
+(declaim (inline fill-dim-array))
+(defun fill-dim-array (dimptr rank dimensions)
+  (loop for i below rank
+        for d in dimensions
+        do (setf (mem-aref dimptr :int i) d)))
+
 (sera:-> %plan-fft (list (member -1 +1) t t)
          (values t &optional))
 (defun %plan-fft (dimensions sign inptr outptr)
   (declare (optimize (speed 3)))
   (let ((rank (length dimensions)))
     (with-foreign-object (dimptr :int rank)
-      (loop for i below rank
-            for d in dimensions
-            do (setf (mem-aref dimptr :int i) d))
+      (fill-dim-array dimptr rank dimensions)
       (let ((plan (%%plan-fft rank dimptr inptr outptr sign +fftw-estimate+)))
         (when (null-pointer-p plan)
           (error 'core:fftw-error :message "Cannot create FFT plan"))
@@ -63,15 +72,12 @@
           (%destroy-fft-plan plan))))))
 
 (defmacro with-fft-plan ((plan dimensions sign) &body body)
-  "Create an FFT plan with and make sure it is destroyed when control
+  "Create an FFT plan and make sure it is destroyed when control
 leaves @c(body)."
   `(%with-fft-plan
     ,dimensions ,sign
     (lambda (,plan)
       ,@body)))
-
-(defcfun ("fftwf_execute" %execute) :void
-  (plan :pointer))
 
 (serapeum:-> fft (fft-plan (simple-array (complex single-float)))
              (values (simple-array (complex single-float)) &optional))
@@ -97,14 +103,87 @@ created plan."
   (with-fft-plan (plan (array-dimensions array) sign)
     (fft plan array)))
 
+;; RFFT
+(defcfun ("fftwf_plan_dft_r2c" %%plan-rfft) :pointer
+  (rank  :int)
+  (dims  (:pointer :int))
+  (in    (:pointer :float))
+  (out   (:pointer :float))
+  (flags :uint))
 
+(sera:-> %plan-rfft (list t t)
+         (values t &optional))
+(defun %plan-rfft (dimensions inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-rfft rank dimptr inptr outptr +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create RFFT plan"))
+        plan))))
 
+(sera:-> %destroy-rfft-plan (rfft-plan)
+         (values &optional))
+(defun %destroy-rfft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (rfft-plan-obj plan))
+  (values))
 
+(defun rfft-dimensions (dimensions)
+  (reduce
+   (lambda (dim acc)
+     (cons
+      (if acc dim (1+ (floor dim 2))) acc))
+   dimensions
+   :from-end t
+   :initial-value nil))
 
+(defun %with-rfft-plan (input-dimensions f)
+  (declare (optimize (speed 3)))
+  (let* ((output-dimensions (rfft-dimensions input-dimensions))
+         (input-size  (reduce #'* input-dimensions))
+         (output-size (reduce #'* output-dimensions))
+         (input  (make-array input-size  :element-type 'single-float))
+         (output (make-array output-size :element-type '(complex single-float))))
+    (declare (type integer input-size output-size))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (rfft-plan (%plan-rfft input-dimensions inptr outptr)
+                             input-dimensions output-dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-rfft-plan plan))))))
 
+(defmacro with-rfft-plan ((plan dimensions) &body body)
+  "Create an RFFT (real-valued input) plan and make sure it is
+destroyed when control leaves @c(body)."
+  `(%with-rfft-plan
+    ,dimensions
+    (lambda (,plan)
+      ,@body)))
 
+(defun rfft (plan array)
+  "Perform RFFT (real-valued input) transform. @c(array)'s and
+@c(plan)'s dimensions must be the same."
+  (unless (equalp (array-dimensions array)
+                  (rfft-plan-input-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (rfft-plan-output-dims plan)
+                            :element-type '(complex single-float))))
+    (copy-to-foreign array (rfft-plan-src plan))
+    (%execute (rfft-plan-obj plan))
+    (copy-complex-from-foreign (rfft-plan-dst plan) result)
+    result))
 
-
+(sera:-> %rfft ((simple-array single-float))
+         (values (simple-array (complex single-float)) &optional))
+(defun %rfft (array)
+  "Perform RFFT (real-valued input) transform. This is a version of
+RFFT without previously created plan."
+  (with-rfft-plan (plan (array-dimensions array))
+    (rfft plan array)))
 
 
 

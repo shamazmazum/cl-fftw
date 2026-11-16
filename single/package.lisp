@@ -5,6 +5,8 @@
   (:export #:fft-plan
            #:with-fft-plan
            #:fft #:%fft
+           #:with-rfft-plan
+           #:rfft #:%rfft
 
    ;; OLD API
    #:plan
