@@ -56,13 +56,12 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/double:%fft array   cl-fftw/core:+forward+)
         for inverse = (cl-fftw/double:%fft forward cl-fftw/core:+backward+) do
-        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
-        (map-into (aops:flatten array)
+        (is (approx:approxp (row-major-aref forward 0)
+                            (reduce #'+ (sb-ext:array-storage-vector array))))
+        (map-into (sb-ext:array-storage-vector array)
                   (lambda (x) (* x total))
-                  (aops:flatten array))
-        (is-true (approx:array-approx-p
-                  (aops:flatten array)
-                  (aops:flatten inverse)))))
+                  (sb-ext:array-storage-vector array))
+        (is-true (approx:array-approx-p array inverse))))
 
 (test rfft/double
   (loop repeat 1000
@@ -72,13 +71,12 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/double:%rfft array)
         for inverse = (cl-fftw/double:%irfft forward dims) do
-        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
-        (map-into (aops:flatten array)
+        (is (approx:approxp (row-major-aref forward 0)
+                            (reduce #'+ (sb-ext:array-storage-vector array))))
+        (map-into (sb-ext:array-storage-vector array)
                   (lambda (x) (* x total))
-                  (aops:flatten array))
-        (is-true (approx:array-approx-p
-                  (aops:flatten array)
-                  (aops:flatten inverse)))))
+                  (sb-ext:array-storage-vector array))
+        (is-true (approx:array-approx-p array inverse))))
 
 (in-suite props/single)
 (test fft/single
@@ -89,13 +87,12 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/single:%fft array   cl-fftw/core:+forward+)
         for inverse = (cl-fftw/single:%fft forward cl-fftw/core:+backward+) do
-        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
-        (map-into (aops:flatten array)
+        (is (approx:approxp (row-major-aref forward 0)
+                            (reduce #'+ (sb-ext:array-storage-vector array))))
+        (map-into (sb-ext:array-storage-vector array)
                   (lambda (x) (* x total))
-                  (aops:flatten array))
-        (is-true (approx:array-approx-p
-                  (aops:flatten array)
-                  (aops:flatten inverse)))))
+                  (sb-ext:array-storage-vector array))
+        (is-true (approx:array-approx-p array inverse))))
 
 (test rfft/single
   (loop repeat 1000
@@ -105,10 +102,9 @@
         for total = (array-total-size array)
         for forward = (cl-fftw/single:%rfft array)
         for inverse = (cl-fftw/single:%irfft forward dims) do
-        (is (approx:approxp (row-major-aref forward 0) (reduce #'+ (aops:flatten array))))
-        (map-into (aops:flatten inverse)
+        (is (approx:approxp (row-major-aref forward 0)
+                            (reduce #'+ (sb-ext:array-storage-vector array))))
+        (map-into (sb-ext:array-storage-vector inverse)
                   (lambda (x) (/ x total))
-                  (aops:flatten inverse))
-        (is-true (approx:array-approx-p
-                  (aops:flatten array)
-                  (aops:flatten inverse)))))
+                  (sb-ext:array-storage-vector inverse))
+        (is-true (approx:array-approx-p array inverse))))

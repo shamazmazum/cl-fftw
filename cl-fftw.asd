@@ -59,7 +59,6 @@
                (:file "tests" :depends-on ("package")))
   :depends-on (:cl-fftw
                :yaft
-               :array-operations
                :fiveam
                :approx))
 
