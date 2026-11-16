@@ -16,12 +16,18 @@
 
 (sera:defconstructor irfft-plan "IRFFT plan handle"
   (obj  t)
-  (dims list)
+  (real-dims    list)
+  (complex-dims list)
   (src  (simple-array (complex single-float) (*)))
   (dst  (simple-array          single-float  (*))))
 
 (sb-c:defknown %with-fft-plan (list (member -1 +1) (function (fft-plan) *)) *
     (sb-c:call)
+  :overwrite-fndb-silently t)
+
+(sb-c:defknown fft (fft-plan (simple-array (complex single-float)))
+    (simple-array (complex single-float))
+    (sb-c:any)
   :overwrite-fndb-silently t)
 
 (sb-c:defknown %with-rfft-plan (list (function (rfft-plan) *)) *
@@ -35,4 +41,9 @@
 
 (sb-c:defknown %with-irfft-plan (list (function (irfft-plan) *)) *
     (sb-c:call)
+  :overwrite-fndb-silently t)
+
+(sb-c:defknown irfft (irfft-plan (simple-array (complex single-float)))
+    (simple-array single-float)
+    (sb-c:any)
   :overwrite-fndb-silently t)

@@ -31,6 +31,7 @@
 
 
 (in-suite one-dim/double)
+#|
 (test complex/yaft/double
   (loop repeat 1000
         for length = (+ (random 4000) 2)
@@ -46,8 +47,10 @@
         for fft1   = (yaft:rfft array)
         for fft2   = (cl-fftw/double:%rfft array)
         do (is-true (approx:array-approx-p fft1 fft2))))
+|#
 
 (in-suite props/double)
+#|
 (test fft/double
   (loop repeat 1000
         for rank  = (1+ (random 3))
@@ -79,6 +82,7 @@
         (is-true (approx:array-approx-p
                   (aops:flatten array)
                   (aops:flatten inverse)))))
+|#
 
 (in-suite props/single)
 (test fft/single

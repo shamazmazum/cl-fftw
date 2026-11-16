@@ -79,12 +79,10 @@ leaves @c(body)."
     (lambda (,plan)
       ,@body)))
 
-(serapeum:-> fft (fft-plan (simple-array (complex single-float)))
-             (values (simple-array (complex single-float)) &optional))
-(declaim (inline fft))
 (defun fft (plan array)
   "Perform FFT transform. @c(array)'s and @c(plan)'s dimensions must
 be the same."
+  (declare (optimize (speed 3)))
   (unless (equalp (array-dimensions array)
                   (fft-plan-dims plan))
     (error 'core:fftw-error :message "Array and plan have different dimensions"))
@@ -97,6 +95,7 @@ be the same."
 
 (sera:-> %fft ((simple-array (complex single-float)) (member -1 +1))
          (values (simple-array (complex single-float)) &optional))
+(declaim (inline %fft))
 (defun %fft (array sign)
   "Perform FFT transform. This is a version of FFT without previously
 created plan."
@@ -167,6 +166,7 @@ destroyed when control leaves @c(body)."
 (defun rfft (plan array)
   "Perform RFFT (real-valued input) transform. @c(array)'s and
 @c(plan)'s dimensions must be the same."
+  (declare (optimize (speed 3)))
   (unless (equalp (array-dimensions array)
                   (rfft-plan-input-dims plan))
     (error 'core:fftw-error :message "Array and plan have different dimensions"))
@@ -179,14 +179,88 @@ destroyed when control leaves @c(body)."
 
 (sera:-> %rfft ((simple-array single-float))
          (values (simple-array (complex single-float)) &optional))
+(declaim (inline %rfft))
 (defun %rfft (array)
   "Perform RFFT (real-valued input) transform. This is a version of
 RFFT without previously created plan."
   (with-rfft-plan (plan (array-dimensions array))
     (rfft plan array)))
 
+;; IRFFT
+(defcfun ("fftwf_plan_dft_c2r" %%plan-irfft) :pointer
+  (rank  :int)
+  (dims  (:pointer :int))
+  (in    (:pointer :float))
+  (out   (:pointer :float))
+  (flags :uint))
 
+(sera:-> %plan-irfft (list t t)
+         (values t &optional))
+(defun %plan-irfft (dimensions inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-irfft rank dimptr inptr outptr +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create IRFFT plan"))
+        plan))))
 
+(sera:-> %destroy-irfft-plan (irfft-plan)
+         (values &optional))
+(defun %destroy-irfft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (irfft-plan-obj plan))
+  (values))
+
+(defun %with-irfft-plan (real-dimensions f)
+  (declare (optimize (speed 3)))
+  (let* ((complex-dimensions (rfft-dimensions real-dimensions))
+         (real-size    (reduce #'* real-dimensions))
+         (complex-size (reduce #'* complex-dimensions))
+         (input  (make-array complex-size :element-type '(complex single-float)))
+         (output (make-array real-size    :element-type 'single-float)))
+    (declare (type integer real-size complex-size))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (irfft-plan (%plan-irfft real-dimensions inptr outptr)
+                              real-dimensions complex-dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-irfft-plan plan))))))
+
+(defmacro with-irfft-plan ((plan dimensions) &body body)
+  "Create an IRFFT (real-valued input inverse FFT) plan and make sure
+it is destroyed when control leaves @c(body)."
+  `(%with-irfft-plan
+    ,dimensions
+    (lambda (,plan)
+      ,@body)))
+
+(defun irfft (plan array)
+  "Perform IRFFT (real-valued input inverse FFT)
+transform. @c(array)'s dimensions must be compatible with @c(plan)'s
+dimensions."
+  (declare (optimize (speed 3)))
+  (unless (equalp (array-dimensions array)
+                  (irfft-plan-complex-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (irfft-plan-real-dims plan)
+                            :element-type 'single-float)))
+    (copy-complex-to-foreign array (irfft-plan-src plan))
+    (%execute (irfft-plan-obj plan))
+    (copy-from-foreign (irfft-plan-dst plan) result)
+    result))
+
+(sera:-> %irfft ((simple-array (complex single-float)) list)
+         (values (simple-array single-float) &optional))
+(declaim (inline %irfft))
+(defun %irfft (array dimensions)
+  "Perform IRFFT (real-valued input inverse FFT) transform. This is a
+version of IRFFT without previously created plan."
+  (with-irfft-plan (plan dimensions)
+    (irfft plan array)))
 
 #|
 (let ((pathname

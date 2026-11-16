@@ -7,13 +7,5 @@
            #:fft #:%fft
            #:with-rfft-plan
            #:rfft #:%rfft
-
-   ;; OLD API
-   #:plan
-           #:destroy-plan
-           #:create-fft-plan
-           #:create-rfft-plan
-           #:create-irfft-plan
-           #:with-plan
-           #:fft #:rfft #:irfft
-           #:%fft #:%rfft #:%irfft))
+           #:with-irfft-plan
+           #:irfft #:%irfft))
