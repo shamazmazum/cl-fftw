@@ -4,5 +4,6 @@
            #:+backward+
            #:fftw-error
            ;; Utility stuff
+           #:with-pointers-to-vector-data
            #:def-copier-to-foreign
            #:def-copier-from-foreign))

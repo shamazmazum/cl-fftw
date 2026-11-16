@@ -62,13 +62,13 @@
          (input  (make-array size :element-type '(complex single-float)))
          (output (make-array size :element-type '(complex single-float))))
     (declare (type integer size))
-    (with-pointer-to-vector-data (inptr input)
-      (with-pointer-to-vector-data (outptr output)
-        (let ((plan (fft-plan (%plan-fft dimensions sign inptr outptr)
-                              dimensions input output)))
-          (unwind-protect
-               (funcall f plan)
-            (%destroy-fft-plan plan)))))))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (fft-plan (%plan-fft dimensions sign inptr outptr)
+                            dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-fft-plan plan))))))
 
 (defmacro with-fft-plan ((plan dimensions sign) &body body)
   "Create an FFT plan with and make sure it is destroyed when control

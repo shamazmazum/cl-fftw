@@ -34,3 +34,13 @@
        (declare (optimize (speed 3)))
        (replace (sb-ext:array-storage-vector dst) src)
        (values))))
+
+(defmacro with-pointers-to-vector-data (bindings &body body)
+  (reduce
+   (lambda (binding acc)
+     (destructuring-bind (ptr vector) binding
+       `(cffi:with-pointer-to-vector-data (,ptr ,vector)
+          ,acc)))
+   bindings
+   :from-end t
+   :initial-value `(progn ,@body)))
