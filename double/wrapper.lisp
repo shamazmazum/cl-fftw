@@ -1,47 +1,310 @@
 (in-package :cl-fftw/double)
 
+;; Copiers
+(core:def-copier-to-foreign   copy-to-foreign   double-float)
+(core:def-copier-from-foreign copy-from-foreign double-float)
+(core:def-copier-to-foreign   copy-complex-to-foreign   (complex double-float))
+(core:def-copier-from-foreign copy-complex-from-foreign (complex double-float))
+
+(define-foreign-library libfftw3
+  (:darwin (:or "libfftw3.dylib"))
+  (:unix  (:or "libfftw3.so.3" "libfftw3.so"))
+  (:windows (:or "libfftw3.dll"))
+  (t (:default "fftw3")))
+
+(use-foreign-library libfftw3)
+
+(defconstant +fftw-estimate+ 64)
+
+;; FFT
+(defcfun ("fftw_plan_dft" %%plan-fft) :pointer
+  (rank       :int)
+  (dimensions (:pointer :int))
+  (in         :pointer)
+  (out        :pointer)
+  (sign       :int)
+  (flags      :uint))
+
+(defcfun ("fftw_destroy_plan" %%destroy-plan) :void
+  (plan :pointer))
+
+(defcfun ("fftw_execute" %execute) :void
+  (plan :pointer))
+
+(declaim (inline fill-dim-array))
+(defun fill-dim-array (dimptr rank dimensions)
+  (loop for i below rank
+        for d in dimensions
+        do (setf (mem-aref dimptr :int i) d)))
+
+(sera:-> %plan-fft (list (member -1 +1) t t)
+         (values t &optional))
+(defun %plan-fft (dimensions sign inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-fft rank dimptr inptr outptr sign +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create FFT plan"))
+        plan))))
+
+(sera:-> %destroy-fft-plan (fft-plan)
+         (values &optional))
+(defun %destroy-fft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (fft-plan-obj plan))
+  (values))
+
+(defun %with-fft-plan (dimensions sign f)
+  (declare (optimize (speed 3)))
+  (let* ((size (reduce #'* dimensions))
+         (input  (make-array size :element-type '(complex double-float)))
+         (output (make-array size :element-type '(complex double-float))))
+    (declare (type integer size))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (fft-plan (%plan-fft dimensions sign inptr outptr)
+                            dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-fft-plan plan))))))
+
+(defmacro with-fft-plan ((plan dimensions sign) &body body)
+  "Create an FFT plan and make sure it is destroyed when control
+leaves @c(body)."
+  `(%with-fft-plan
+    ,dimensions ,sign
+    (lambda (,plan)
+      ,@body)))
+
+(defun fft (plan array)
+  "Perform FFT transform. @c(array)'s and @c(plan)'s dimensions must
+be the same."
+  (declare (optimize (speed 3)))
+  (unless (equalp (array-dimensions array)
+                  (fft-plan-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (array-dimensions array)
+                            :element-type '(complex double-float))))
+    (copy-complex-to-foreign array (fft-plan-src plan))
+    (%execute (fft-plan-obj plan))
+    (copy-complex-from-foreign (fft-plan-dst plan) result)
+    result))
+
+(sera:-> %fft ((simple-array (complex double-float)) (member -1 +1))
+         (values (simple-array (complex double-float)) &optional))
+(declaim (inline %fft))
+(defun %fft (array sign)
+  "Perform FFT transform. This is a version of FFT without previously
+created plan."
+  (with-fft-plan (plan (array-dimensions array) sign)
+    (fft plan array)))
+
+;; RFFT
+(defcfun ("fftw_plan_dft_r2c" %%plan-rfft) :pointer
+  (rank  :int)
+  (dims  (:pointer :int))
+  (in    (:pointer :float))
+  (out   (:pointer :float))
+  (flags :uint))
+
+(sera:-> %plan-rfft (list t t)
+         (values t &optional))
+(defun %plan-rfft (dimensions inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-rfft rank dimptr inptr outptr +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create RFFT plan"))
+        plan))))
+
+(sera:-> %destroy-rfft-plan (rfft-plan)
+         (values &optional))
+(defun %destroy-rfft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (rfft-plan-obj plan))
+  (values))
+
+(defun rfft-dimensions (dimensions)
+  (reduce
+   (lambda (dim acc)
+     (cons
+      (if acc dim (1+ (floor dim 2))) acc))
+   dimensions
+   :from-end t
+   :initial-value nil))
+
+(defun %with-rfft-plan (input-dimensions f)
+  (declare (optimize (speed 3)))
+  (let* ((output-dimensions (rfft-dimensions input-dimensions))
+         (input-size  (reduce #'* input-dimensions))
+         (output-size (reduce #'* output-dimensions))
+         (input  (make-array input-size  :element-type 'double-float))
+         (output (make-array output-size :element-type '(complex double-float))))
+    (declare (type integer input-size output-size))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (rfft-plan (%plan-rfft input-dimensions inptr outptr)
+                             input-dimensions output-dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-rfft-plan plan))))))
+
+(defmacro with-rfft-plan ((plan dimensions) &body body)
+  "Create an RFFT (real-valued input) plan and make sure it is
+destroyed when control leaves @c(body)."
+  `(%with-rfft-plan
+    ,dimensions
+    (lambda (,plan)
+      ,@body)))
+
+(defun rfft (plan array)
+  "Perform RFFT (real-valued input) transform. @c(array)'s and
+@c(plan)'s dimensions must be the same."
+  (declare (optimize (speed 3)))
+  (unless (equalp (array-dimensions array)
+                  (rfft-plan-input-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (rfft-plan-output-dims plan)
+                            :element-type '(complex double-float))))
+    (copy-to-foreign array (rfft-plan-src plan))
+    (%execute (rfft-plan-obj plan))
+    (copy-complex-from-foreign (rfft-plan-dst plan) result)
+    result))
+
+(sera:-> %rfft ((simple-array double-float))
+         (values (simple-array (complex double-float)) &optional))
+(declaim (inline %rfft))
+(defun %rfft (array)
+  "Perform RFFT (real-valued input) transform. This is a version of
+RFFT without previously created plan."
+  (with-rfft-plan (plan (array-dimensions array))
+    (rfft plan array)))
+
+;; IRFFT
+(defcfun ("fftw_plan_dft_c2r" %%plan-irfft) :pointer
+  (rank  :int)
+  (dims  (:pointer :int))
+  (in    (:pointer :float))
+  (out   (:pointer :float))
+  (flags :uint))
+
+(sera:-> %plan-irfft (list t t)
+         (values t &optional))
+(defun %plan-irfft (dimensions inptr outptr)
+  (declare (optimize (speed 3)))
+  (let ((rank (length dimensions)))
+    (with-foreign-object (dimptr :int rank)
+      (fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-irfft rank dimptr inptr outptr +fftw-estimate+)))
+        (when (null-pointer-p plan)
+          (error 'core:fftw-error :message "Cannot create IRFFT plan"))
+        plan))))
+
+(sera:-> %destroy-irfft-plan (irfft-plan)
+         (values &optional))
+(defun %destroy-irfft-plan (plan)
+  (declare (optimize (speed 3)))
+  (%%destroy-plan
+   (irfft-plan-obj plan))
+  (values))
+
+(defun %with-irfft-plan (real-dimensions f)
+  (declare (optimize (speed 3)))
+  (let* ((complex-dimensions (rfft-dimensions real-dimensions))
+         (real-size    (reduce #'* real-dimensions))
+         (complex-size (reduce #'* complex-dimensions))
+         (input  (make-array complex-size :element-type '(complex double-float)))
+         (output (make-array real-size    :element-type 'double-float)))
+    (declare (type integer real-size complex-size))
+    (core:with-pointers-to-vector-data ((inptr input)
+                                        (outptr output))
+      (let ((plan (irfft-plan (%plan-irfft real-dimensions inptr outptr)
+                              real-dimensions complex-dimensions input output)))
+        (unwind-protect
+             (funcall f plan)
+          (%destroy-irfft-plan plan))))))
+
+(defmacro with-irfft-plan ((plan dimensions) &body body)
+  "Create an IRFFT (real-valued input inverse FFT) plan and make sure
+it is destroyed when control leaves @c(body)."
+  `(%with-irfft-plan
+    ,dimensions
+    (lambda (,plan)
+      ,@body)))
+
+(defun irfft (plan array)
+  "Perform IRFFT (real-valued input inverse FFT)
+transform. @c(array)'s dimensions must be compatible with @c(plan)'s
+dimensions."
+  (declare (optimize (speed 3)))
+  (unless (equalp (array-dimensions array)
+                  (irfft-plan-complex-dims plan))
+    (error 'core:fftw-error :message "Array and plan have different dimensions"))
+  (let ((result (make-array (irfft-plan-real-dims plan)
+                            :element-type 'double-float)))
+    (copy-complex-to-foreign array (irfft-plan-src plan))
+    (%execute (irfft-plan-obj plan))
+    (copy-from-foreign (irfft-plan-dst plan) result)
+    result))
+
+(sera:-> %irfft ((simple-array (complex double-float)) list)
+         (values (simple-array double-float) &optional))
+(declaim (inline %irfft))
+(defun %irfft (array dimensions)
+  "Perform IRFFT (real-valued input inverse FFT) transform. This is a
+version of IRFFT without previously created plan."
+  (with-irfft-plan (plan dimensions)
+    (irfft plan array)))
+
+#|
 (let ((pathname
        (asdf:output-file
         'asdf:compile-op
         (asdf:find-component
-         :cl-fftw/double "libfftwrapd"))))
+         :cl-fftw/single "libfftwraps"))))
   (pushnew
    (make-pathname
     :directory (pathname-directory pathname))
    *foreign-library-directories*
    :test #'equalp))
 
-(define-foreign-library libfftwrapd
-  (:darwin (:or "libfftwrapd.dylib" "fftwrapd.dylib"))
-  (:unix  (:or "libfftwrapd.so" "fftwrapd.so"))
-  (:windows (:or "libfftwrapd.dll" "fftwrapd.dll"))
-  (t (:default "fftwrapd")))
+(define-foreign-library libfftwraps
+  (:darwin (:or "libfftwraps.dylib" "fftwraps.dylib"))
+  (:unix  (:or "libfftwraps.so" "fftwraps.so"))
+  (:windows (:or "libfftwraps.dll" "fftwraps.dll"))
+  (t (:default "fftwraps")))
 
-(use-foreign-library libfftwrapd)
+(use-foreign-library libfftwraps)
 
-(defcfun ("fftwrapd_create_fft_plan" %create-fft-plan) :pointer
+(defcfun ("fftwraps_create_fft_plan" %create-fft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int))
   (sign       :int))
 
-(defcfun ("fftwrapd_create_rfft_plan" %create-rfft-plan) :pointer
+(defcfun ("fftwraps_create_rfft_plan" %create-rfft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int)))
 
-(defcfun ("fftwrapd_create_irfft_plan" %create-irfft-plan) :pointer
+(defcfun ("fftwraps_create_irfft_plan" %create-irfft-plan) :pointer
   (rank       :int)
   (dimensions (:pointer :int)))
 
-(defcfun ("fftwrapd_destroy_plan" %destroy-plan) :void
+(defcfun ("fftwraps_destroy_plan" %destroy-plan) :void
   (plan :pointer))
 
-(defcfun ("fftwrapd_get_input_pointer" get-input-pointer) :pointer
+(defcfun ("fftwraps_get_input_pointer" get-input-pointer) :pointer
   (plan :pointer))
 
-(defcfun ("fftwrapd_get_output_pointer" get-output-pointer) :pointer
+(defcfun ("fftwraps_get_output_pointer" get-output-pointer) :pointer
   (plan :pointer))
 
-(defcfun ("fftwrapd_execute_plan" execute-plan) :pointer
+(defcfun ("fftwraps_execute_plan" execute-plan) :pointer
   (plan :pointer))
 
 (sera:defconstructor plan
@@ -57,13 +320,13 @@
        (loop for i below (array-total-size array)
              for j from 0 by 2
              for x = (row-major-aref array i) do
-             (setf (mem-aref ptr :double j)
+             (setf (mem-aref ptr :float j)
                    (realpart x)
-                   (mem-aref ptr :double (1+ j))
+                   (mem-aref ptr :float (1+ j))
                    (imagpart x))))
       ((equalp type 'double-float)
        (loop for i below (array-total-size array) do
-             (setf (mem-aref ptr :double i)
+             (setf (mem-aref ptr :float i)
                    (row-major-aref array i))))
       (t (error "Unreachable"))))
   array)
@@ -76,14 +339,14 @@
       ((equalp type '(complex double-float))
        (loop for i below (array-total-size array)
              for j from 0 by 2
-             for x = (complex (mem-aref ptr :double j)
-                              (mem-aref ptr :double (1+ j)))
+             for x = (complex (mem-aref ptr :float j)
+                              (mem-aref ptr :float (1+ j)))
              do
              (setf (row-major-aref array i) x)))
       ((equalp type 'double-float)
        (loop for i below (array-total-size array) do
              (setf (row-major-aref array i)
-                   (mem-aref ptr :double i))))
+                   (mem-aref ptr :float i))))
       (t (error "Unreachable"))))
   array)
 
@@ -199,3 +462,4 @@ previously created plan. @c(dimensions) is a list of dimensions of the
 result."
   (with-plan (plan create-irfft-plan dimensions)
     (irfft plan array)))
+|#
