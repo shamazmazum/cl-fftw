@@ -52,15 +52,37 @@
     <main class="codex-section">
       <p>
     <b>cl-fftw</b> is a wrapper around FFTW library (in double and single
-    precision). There are two types of functions: for use with plans and &quot;fast&quot;
-    ones which are prefixed with <code>%</code> and do not require manual plan creation.</p><p>    This is a list of FFT functions which work with plans:
-    </p><ol><li><code>fft</code> does a complex-to-complex transform (in both directions).</li><li><code>rfft</code> does a transform of real-valued input.</li><li><code>irfft</code> is an inverse of <code>rfft</code>.</li></ol><p>    Plans for these functions can be created as follows:
-    </p><ol><li><code>create-fft-plan</code> for <code>fft</code>.</li><li><code>create-rfft-plan</code> for <code>rfft</code>.</li><li><code>create-irfft-plan</code> for <code>irfft</code>.</li></ol><p>    A plan must be destroyed with <code>destroy-plan</code> when it is no longer
-    needed. A convenient macro <code>with-plan</code> helps to control lifetime of a
-    plan.</p><p>    There are two packages: <code>cl-fftw/double</code> and <code>cl-fftw/single</code> which have
+    precision). There are two types of functions: for use with plans and
+    &quot;convenient&quot; ones which are prefixed with <code>%</code> and do not require manual
+    plan creation.</p><p>    This is a list of FFT functions which work with plans:
+    </p><ol><li><code>fft</code> does a complex-to-complex transform (in both directions).</li><li><code>rfft</code> does a transform of real-valued input.</li><li><code>irfft</code> is an inverse of <code>rfft</code>.</li></ol><p>    Plans for these functions are handled with these macros:
+    </p><ol><li><code>with-fft-plan</code> for <code>fft</code>.</li><li><code>with-rfft-plan</code> for <code>rfft</code>.</li><li><code>with-irfft-plan</code> for <code>irfft</code>.</li></ol><p>    There are two packages: <code>cl-fftw/double</code> and <code>cl-fftw/single</code> which have
     the same set of functions but work with different precision. Two commonly
     used constants, <code>+forward+</code> and <code>+backward+</code> which are used to specify
-    the transform's direction are in <code>cl-fftw/core</code> package.
+    the transform's direction are in <code>cl-fftw/core</code> package.</p><p>    Here is an example of 1D circular convolution with <code>cl-fftw</code>:
+</p><pre><code class="lisp">(defpackage convolve
+  (:use #:cl #:cl-fftw/single)
+  (:export :convolve))
+(in-package convolve)
+
+(defun convolve (a b)
+  (declare (type (simple-array single-float (*)) a b))
+  (assert (= (length a)(length b)))
+  (map '(vector single-float)
+       ;; Normalize by dividing by total number of elements
+       (lambda (x)(/ x (length a)))
+       (with-irfft-plan (plan-inv (array-dimensions a))
+         (irfft plan-inv
+                (with-rfft-plan (plan-fwd (array-dimensions a))
+                  (let ((fft-a (rfft plan-fwd a))
+                        (fft-b (rfft plan-fwd b)))
+                    (map '(vector (complex single-float))
+                         #'* fft-a fft-b)))))))
+
+(convolve:convolve
+ #a(5 single-float . (0.0 0.0 0.0 1.0 0.0))
+ #a(5 single-float . (1.0 2.0 3.0 4.0 5.0))) ; =&gt; #(3.0 4.0 5.0 1.0 2.0)
+</code></pre><p>
 </p>
     </main>
   </article>
