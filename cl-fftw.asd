@@ -60,6 +60,7 @@
   :depends-on (:cl-fftw
                :yaft
                :fiveam
+               :vector-sum
                :approx))
 
 ;; For qlot
