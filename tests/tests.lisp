@@ -5,12 +5,28 @@
 (def-suite props/single :description "Generic FFT properties (single precision)")
 
 (defun run-tests ()
-  (every #'identity
-         (mapcar (lambda (suite)
-                   (let ((status (run suite)))
-                     (explain! status)
-                     (results-status status)))
-                 '(one-dim/double props/double props/single))))
+  (let ((fiveam:*num-trials* 1000))
+    (every #'identity
+           (mapcar (lambda (suite)
+                     (let ((status (run suite)))
+                       (explain! status)
+                       (results-status status)))
+                   '(one-dim/double props/double props/single)))))
+
+(defun gen-complex (f)
+  (lambda ()
+    (complex
+     (funcall f)
+     (funcall f))))
+
+(defun gen-array (&key dimensions element-type elements)
+  (lambda ()
+    (let ((array (make-array (funcall dimensions)
+                             :element-type element-type)))
+      (loop for i below (array-total-size array)
+            do (setf (row-major-aref array i)
+                     (funcall elements)))
+      array)))
 
 (defun random-content (dimensions type &key complexp)
   (let ((const (ecase type
@@ -31,80 +47,89 @@
 
 
 (in-suite one-dim/double)
-(test complex/yaft/double
-  (loop repeat 1000
-        for length = (+ (random 4000) 2)
-        for array  = (random-content (list length) 'double-float :complexp t)
-        for fft1 = (yaft:fft array yaft:+forward+)
-        for fft2 = (cl-fftw/double:%fft array cl-fftw/core:+forward+)
-        do (is-true (approx:array-approx-p fft1 fft2))))
+(test fft/yaft/double
+  (for-all ((array (gen-buffer :length        (gen-integer :min 2 :max 4000)
+                               :element-type '(complex double-float)
+                               :elements      (gen-complex
+                                               (gen-float :bound  1d0
+                                                          :type  'double-float)))))
+  (let ((fft1 (yaft:fft array yaft:+forward+))
+        (fft2 (cl-fftw/double:%fft array cl-fftw/core:+forward+)))
+    (is-true (approx:array-approx-p fft1 fft2)))))
 
-(test real/yaft/double
-  (loop repeat 1000
-        for length = (* (+ (random 4000) 2) 2)
-        for array  = (random-content (list length) 'double-float :complexp nil)
-        for fft1   = (yaft:rfft array)
-        for fft2   = (cl-fftw/double:%rfft array)
-        do (is-true (approx:array-approx-p fft1 fft2))))
+(test rfft/yaft/double
+  (for-all* ((length (gen-integer :min 2 :max 4000))
+             (array (gen-buffer :length        (gen-integer :min (* length 2)
+                                                            :max (* length 2))
+                                :element-type 'double-float
+                                :elements      (gen-float :bound  1d0
+                                                          :type  'double-float))))
+    (let ((fft1 (yaft:rfft array))
+          (fft2 (cl-fftw/double:%rfft array)))
+      (is-true (approx:array-approx-p fft1 fft2)))))
 
 (in-suite props/double)
 (test fft/double
-  (loop repeat 1000
-        for rank  = (1+ (random 3))
-        for dims  = (loop repeat rank collect (1+ (random 100)))
-        for array = (random-content dims 'double-float :complexp t)
-        for total = (array-total-size array)
-        for forward = (cl-fftw/double:%fft array   cl-fftw/core:+forward+)
-        for inverse = (cl-fftw/double:%fft forward cl-fftw/core:+backward+) do
-        (is (approx:approxp (row-major-aref forward 0)
-                            (reduce #'+ (sb-ext:array-storage-vector array))))
-        (map-into (sb-ext:array-storage-vector array)
-                  (lambda (x) (* x total))
-                  (sb-ext:array-storage-vector array))
-        (is-true (approx:array-approx-p array inverse))))
+  (for-all ((array (gen-array
+                    :dimensions    (gen-list :length   (gen-integer :min 1 :max 3)
+                                             :elements (gen-integer :min 1 :max 100))
+                    :element-type '(complex double-float)
+                    :elements      (gen-complex (gen-float :bound 1d0 :type 'double-float)))))
+    (let* ((total (array-total-size array))
+           (forward (cl-fftw/double:%fft array   cl-fftw/core:+forward+))
+           (inverse (cl-fftw/double:%fft forward cl-fftw/core:+backward+)))
+      (is (approx:approxp (row-major-aref forward 0)
+                          (reduce #'+ (sb-ext:array-storage-vector array))))
+      (map-into (sb-ext:array-storage-vector array)
+                (lambda (x) (* x total))
+                (sb-ext:array-storage-vector array))
+      (is-true (approx:array-approx-p array inverse)))))
 
 (test rfft/double
-  (loop repeat 1000
-        for rank  = (1+ (random 3))
-        for dims  = (loop repeat rank collect (1+ (random 100)))
-        for array = (random-content dims 'double-float :complexp nil)
-        for total = (array-total-size array)
-        for forward = (cl-fftw/double:%rfft array)
-        for inverse = (cl-fftw/double:%irfft forward dims) do
-        (is (approx:approxp (row-major-aref forward 0)
-                            (reduce #'+ (sb-ext:array-storage-vector array))))
-        (map-into (sb-ext:array-storage-vector array)
-                  (lambda (x) (* x total))
-                  (sb-ext:array-storage-vector array))
-        (is-true (approx:array-approx-p array inverse))))
+  (for-all ((array (gen-array
+                    :dimensions    (gen-list :length   (gen-integer :min 1 :max 3)
+                                             :elements (gen-integer :min 1 :max 100))
+                    :element-type 'double-float
+                    :elements      (gen-float :bound 1d0 :type 'double-float))))
+    (let* ((total (array-total-size array))
+           (forward (cl-fftw/double:%rfft  array))
+           (inverse (cl-fftw/double:%irfft forward (array-dimensions array))))
+      (is (approx:approxp (row-major-aref forward 0)
+                          (reduce #'+ (sb-ext:array-storage-vector array))))
+      (map-into (sb-ext:array-storage-vector array)
+                (lambda (x) (* x total))
+                (sb-ext:array-storage-vector array))
+      (is-true (approx:array-approx-p array inverse)))))
 
 (in-suite props/single)
 (test fft/single
-  (loop repeat 1000
-        for rank  = (1+ (random 3))
-        for dims  = (loop repeat rank collect (1+ (random 10)))
-        for array = (random-content dims 'single-float :complexp t)
-        for total = (array-total-size array)
-        for forward = (cl-fftw/single:%fft array   cl-fftw/core:+forward+)
-        for inverse = (cl-fftw/single:%fft forward cl-fftw/core:+backward+) do
-        (is (approx:approxp (row-major-aref forward 0)
-                            (reduce #'+ (sb-ext:array-storage-vector array))))
-        (map-into (sb-ext:array-storage-vector array)
-                  (lambda (x) (* x total))
-                  (sb-ext:array-storage-vector array))
-        (is-true (approx:array-approx-p array inverse))))
+  (for-all ((array (gen-array
+                    :dimensions    (gen-list :length   (gen-integer :min 1 :max 3)
+                                             :elements (gen-integer :min 1 :max 100))
+                    :element-type '(complex single-float)
+                    :elements      (gen-complex (gen-float :bound 1d0 :type 'single-float)))))
+    (let* ((total (array-total-size array))
+           (forward (cl-fftw/single:%fft array   cl-fftw/core:+forward+))
+           (inverse (cl-fftw/single:%fft forward cl-fftw/core:+backward+)))
+      (is (approx:approxp (row-major-aref forward 0)
+                          (reduce #'+ (sb-ext:array-storage-vector array))))
+      (map-into (sb-ext:array-storage-vector array)
+                (lambda (x) (* x total))
+                (sb-ext:array-storage-vector array))
+      (is-true (approx:array-approx-p array inverse)))))
 
 (test rfft/single
-  (loop repeat 1000
-        for rank  = (1+ (random 3))
-        for dims  = (loop repeat rank collect (1+ (random 10)))
-        for array = (random-content dims 'single-float :complexp nil)
-        for total = (array-total-size array)
-        for forward = (cl-fftw/single:%rfft array)
-        for inverse = (cl-fftw/single:%irfft forward dims) do
-        (is (approx:approxp (row-major-aref forward 0)
-                            (reduce #'+ (sb-ext:array-storage-vector array))))
-        (map-into (sb-ext:array-storage-vector inverse)
-                  (lambda (x) (/ x total))
-                  (sb-ext:array-storage-vector inverse))
-        (is-true (approx:array-approx-p array inverse))))
+  (for-all ((array (gen-array
+                    :dimensions    (gen-list :length   (gen-integer :min 1 :max 3)
+                                             :elements (gen-integer :min 1 :max 100))
+                    :element-type 'single-float
+                    :elements      (gen-float :bound 1d0 :type 'single-float))))
+    (let* ((total (array-total-size array))
+           (forward (cl-fftw/single:%rfft  array))
+           (inverse (cl-fftw/single:%irfft forward (array-dimensions array))))
+      (is (approx:approxp (row-major-aref forward 0)
+                          (reduce #'+ (sb-ext:array-storage-vector array))))
+      (map-into (sb-ext:array-storage-vector array)
+                (lambda (x) (* x total))
+                (sb-ext:array-storage-vector array))
+      (is-true (approx:array-approx-p array inverse)))))
