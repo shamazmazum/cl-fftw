@@ -139,16 +139,16 @@ created plan."
           (%destroy-rfft-plan plan))))))
 
 (defmacro with-rfft-plan ((plan dimensions) &body body)
-  "Create an RFFT (real-valued input) plan and make sure it is
-destroyed when control leaves @c(body)."
+  "Create an RFFT (real-valued input forward FFT) plan and make sure
+it is destroyed when control leaves @c(body)."
   `(%with-rfft-plan
     ,dimensions
     (lambda (,plan)
       ,@body)))
 
 (defun rfft (plan array)
-  "Perform RFFT (real-valued input) transform. @c(array)'s and
-@c(plan)'s dimensions must be the same."
+  "Perform RFFT (real-valued input forward FFT) transform. @c(array)'s
+and @c(plan)'s dimensions must be the same."
   (declare (optimize (speed 3)))
   (unless (equalp (array-dimensions array)
                   (rfft-plan-input-dims plan))
@@ -164,8 +164,8 @@ destroyed when control leaves @c(body)."
          (values (simple-array (complex single-float)) &optional))
 (declaim (inline %rfft))
 (defun %rfft (array)
-  "Perform RFFT (real-valued input) transform. This is a version of
-RFFT without previously created plan."
+  "Perform RFFT (real-valued input forward FFT) transform. This is a
+version of RFFT without previously created plan."
   (with-rfft-plan (plan (array-dimensions array))
     (rfft plan array)))
 

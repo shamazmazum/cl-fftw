@@ -2,7 +2,7 @@
 (error "This wrapper is SBCL only")
 (defsystem :cl-fftw/core
   :name :cl-fftw/core
-  :version "0.2"
+  :version "0.3"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "A wrapper for FFTW (general constants)"
   :licence "2-clause BSD"
@@ -14,7 +14,7 @@
 
 (defsystem :cl-fftw/double
   :name :cl-fftw/double
-  :version "0.2"
+  :version "0.3"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "A wrapper for FFTW (double precision)"
   :licence "2-clause BSD"
@@ -28,7 +28,7 @@
 
 (defsystem :cl-fftw/single
   :name :cl-fftw/single
-  :version "0.2"
+  :version "0.3"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "A wrapper for FFTW (single precision)"
   :licence "2-clause BSD"
@@ -42,7 +42,7 @@
 
 (defsystem :cl-fftw
   :name :cl-fftw
-  :version "0.2"
+  :version "0.3"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "A wrapper for FFTW"
   :licence "2-clause BSD"

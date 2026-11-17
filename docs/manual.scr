@@ -1,8 +1,9 @@
 @begin[ref=index](section)
     @title(Overview)
     @b(cl-fftw) is a wrapper around FFTW library (in double and single
-    precision). There are two types of functions: for use with plans and "fast"
-    ones which are prefixed with @c(%) and do not require manual plan creation.
+    precision). There are two types of functions: for use with plans and
+    "convenient" ones which are prefixed with @c(%) and do not require manual
+    plan creation.
 
     This is a list of FFT functions which work with plans:
     @begin(enum)
@@ -11,21 +12,43 @@
         @item(@c(irfft) is an inverse of @c(rfft).)
     @end(enum)
 
-    Plans for these functions can be created as follows:
+    Plans for these functions are handled with these macros:
     @begin(enum)
-        @item(@c(create-fft-plan) for @c(fft).)
-        @item(@c(create-rfft-plan) for @c(rfft).)
-        @item(@c(create-irfft-plan) for @c(irfft).)
+        @item(@c(with-fft-plan) for @c(fft).)
+        @item(@c(with-rfft-plan) for @c(rfft).)
+        @item(@c(with-irfft-plan) for @c(irfft).)
     @end(enum)
-
-    A plan must be destroyed with @c(destroy-plan) when it is no longer
-    needed. A convenient macro @c(with-plan) helps to control lifetime of a
-    plan.
 
     There are two packages: @c(cl-fftw/double) and @c(cl-fftw/single) which have
     the same set of functions but work with different precision. Two commonly
     used constants, @c(+forward+) and @c(+backward+) which are used to specify
     the transform's direction are in @c(cl-fftw/core) package.
+
+    Here is an example of 1D circular convolution with @c(cl-fftw):
+@begin[lang=lisp](code)
+(defpackage convolve
+  (:use #:cl #:cl-fftw/single)
+  (:export :convolve))
+(in-package convolve)
+
+(defun convolve (a b)
+  (declare (type (simple-array single-float (*)) a b))
+  (assert (= (length a) (length b)))
+  (map '(vector single-float)
+       ;; Normalize by dividing by total number of elements
+       (lambda (x) (/ x (length a)))
+       (with-irfft-plan (plan-inv (array-dimensions a))
+         (irfft plan-inv
+                (with-rfft-plan (plan-fwd (array-dimensions a))
+                  (let ((fft-a (rfft plan-fwd a))
+                        (fft-b (rfft plan-fwd b)))
+                    (map '(vector (complex single-float))
+                         #'* fft-a fft-b)))))))
+
+(convolve:convolve
+ #a(5 single-float . (0.0 0.0 0.0 1.0 0.0))
+ #a(5 single-float . (1.0 2.0 3.0 4.0 5.0))) ; => #(3.0 4.0 5.0 1.0 2.0)
+@end(code)
 @end(section)
 
 @begin(section)
@@ -39,11 +62,9 @@
     Management of plans. Here and below you can choose @c(cl-fftw/double) and/or
     @c(cl-fftw/single) package:
     @cl:with-package[name="cl-fftw/double"](
-      @cl:doc(function create-fft-plan)
-      @cl:doc(function create-rfft-plan)
-      @cl:doc(function create-irfft-plan)
-      @cl:doc(function destroy-plan)
-      @cl:doc(macro with-plan)
+      @cl:doc(macro with-fft-plan)
+      @cl:doc(macro with-rfft-plan)
+      @cl:doc(macro with-irfft-plan)
    )
 
    Basic FFT functions:
@@ -53,7 +74,7 @@
       @cl:doc(function irfft)
    )
 
-   "Fast" FFT functions (no plan creation required):
+   "Convenient" FFT functions (no plan creation required, save typing):
    @cl:with-package[name="cl-fftw/double"](
       @cl:doc(function %fft)
       @cl:doc(function %rfft)
