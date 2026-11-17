@@ -14,8 +14,6 @@
 
 (use-foreign-library libfftw3f)
 
-(defconstant +fftw-estimate+ 64)
-
 ;; FFT
 (defcfun ("fftwf_plan_dft" %%plan-fft) :pointer
   (rank       :int)
@@ -31,20 +29,14 @@
 (defcfun ("fftwf_execute" %execute) :void
   (plan :pointer))
 
-(declaim (inline fill-dim-array))
-(defun fill-dim-array (dimptr rank dimensions)
-  (loop for i below rank
-        for d in dimensions
-        do (setf (mem-aref dimptr :int i) d)))
-
 (sera:-> %plan-fft (list (member -1 +1) t t)
          (values t &optional))
 (defun %plan-fft (dimensions sign inptr outptr)
   (declare (optimize (speed 3)))
   (let ((rank (length dimensions)))
     (with-foreign-object (dimptr :int rank)
-      (fill-dim-array dimptr rank dimensions)
-      (let ((plan (%%plan-fft rank dimptr inptr outptr sign +fftw-estimate+)))
+      (core:fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-fft rank dimptr inptr outptr sign core:+fftw-estimate+)))
         (when (null-pointer-p plan)
           (error 'core:fftw-error :message "Cannot create FFT plan"))
         plan))))
@@ -116,8 +108,8 @@ created plan."
   (declare (optimize (speed 3)))
   (let ((rank (length dimensions)))
     (with-foreign-object (dimptr :int rank)
-      (fill-dim-array dimptr rank dimensions)
-      (let ((plan (%%plan-rfft rank dimptr inptr outptr +fftw-estimate+)))
+      (core:fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-rfft rank dimptr inptr outptr core:+fftw-estimate+)))
         (when (null-pointer-p plan)
           (error 'core:fftw-error :message "Cannot create RFFT plan"))
         plan))))
@@ -130,18 +122,9 @@ created plan."
    (rfft-plan-obj plan))
   (values))
 
-(defun rfft-dimensions (dimensions)
-  (reduce
-   (lambda (dim acc)
-     (cons
-      (if acc dim (1+ (floor dim 2))) acc))
-   dimensions
-   :from-end t
-   :initial-value nil))
-
 (defun %with-rfft-plan (input-dimensions f)
   (declare (optimize (speed 3)))
-  (let* ((output-dimensions (rfft-dimensions input-dimensions))
+  (let* ((output-dimensions (core:rfft-dimensions input-dimensions))
          (input-size  (reduce #'* input-dimensions))
          (output-size (reduce #'* output-dimensions))
          (input  (make-array input-size  :element-type 'single-float))
@@ -200,8 +183,8 @@ RFFT without previously created plan."
   (declare (optimize (speed 3)))
   (let ((rank (length dimensions)))
     (with-foreign-object (dimptr :int rank)
-      (fill-dim-array dimptr rank dimensions)
-      (let ((plan (%%plan-irfft rank dimptr inptr outptr +fftw-estimate+)))
+      (core:fill-dim-array dimptr rank dimensions)
+      (let ((plan (%%plan-irfft rank dimptr inptr outptr core:+fftw-estimate+)))
         (when (null-pointer-p plan)
           (error 'core:fftw-error :message "Cannot create IRFFT plan"))
         plan))))
@@ -216,7 +199,7 @@ RFFT without previously created plan."
 
 (defun %with-irfft-plan (real-dimensions f)
   (declare (optimize (speed 3)))
-  (let* ((complex-dimensions (rfft-dimensions real-dimensions))
+  (let* ((complex-dimensions (core:rfft-dimensions real-dimensions))
          (real-size    (reduce #'* real-dimensions))
          (complex-size (reduce #'* complex-dimensions))
          (input  (make-array complex-size :element-type '(complex single-float)))

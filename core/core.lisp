@@ -44,3 +44,60 @@
    bindings
    :from-end t
    :initial-value `(progn ,@body)))
+
+(defconstant +fftw-estimate+ 64)
+
+(declaim (inline fill-dim-array))
+(defun fill-dim-array (dimptr rank dimensions)
+  (loop for i below rank
+        for d in dimensions
+        do (setf (cffi:mem-aref dimptr :int i) d)))
+
+(defun rfft-dimensions (dimensions)
+  (reduce
+   (lambda (dim acc)
+     (cons
+      (if acc dim (1+ (floor dim 2))) acc))
+   dimensions
+   :from-end t
+   :initial-value nil))
+
+(declaim (inline make-array-type))
+(defun make-array-type (type dimensions)
+  (sb-kernel:make-array-type
+   dimensions
+   :complexp                 nil
+   :element-type             type
+   :specialized-element-type type))
+
+(declaim (inline rfft-dimensions-for-type))
+(defun rfft-dimensions-for-type (dims)
+  (if (atom dims) dims
+      (reduce
+       (lambda (dim acc)
+         (cons
+          (cond
+            (acc dim)
+            ((integerp dim)
+             (1+ (floor dim 2)))
+            (t dim))
+          acc))
+       dims
+       :from-end t
+       :initial-value nil)))
+
+(declaim (inline irfft-dimensions-for-type))
+(defun irfft-dimensions-for-type (dims)
+  (if (atom dims) dims
+      (reduce
+       (lambda (dim acc)
+         (cons (if acc dim '*) acc))
+       dims
+       :from-end t
+       :initial-value nil)))
+
+(declaim (inline type-deriver/with-plan))
+(defun type-deriver/with-plan (f)
+  (let ((type (sb-c::lvar-fun-type f t t)))
+    (when (sb-kernel:fun-type-p type)
+      (sb-kernel:fun-type-returns type))))
